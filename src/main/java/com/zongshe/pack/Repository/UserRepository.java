@@ -27,13 +27,13 @@ public interface UserRepository extends JpaRepository<User, Integer> {
      * @param username
      * @return
      */
-    User findByUsernameAndIsDeletedFalse(String username);
+    User findByAccountAndIsDeletedFalse(String username);
 
     /**
      * 按用户名模糊查找用户列表
      * @param username
      * @return
      */
-    List<User> findByUsernameContainingAndIsDeletedFalse(String username);
+    List<User> findByAccountContainingAndIsDeletedFalse(String username);
 
 }

@@ -5,6 +5,7 @@ import com.zongshe.pack.Entity.User;
 import com.zongshe.pack.Repository.ProfileReposity;
 import com.zongshe.pack.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,7 +19,31 @@ public class UserService {
     @Autowired
     private ProfileReposity profileReposity;
 
-    public List<User> getAllUser() {return userRepository.findByIsDeletedFalse();}
+    private BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder();
+
+    public User register(String account, String password) throws Exception {
+        User existingUser = userRepository.findByAccountAndIsDeletedFalse(account);
+        if (existingUser != null) {
+            throw new Exception("用户名已存在");
+        }
+        User newUser = new User();
+        newUser.setAccount(account);
+        newUser.setPassword(bCryptPasswordEncoder.encode(password));
+        return addUser(newUser);
+    }
+
+    public User login(String account, String password) throws Exception {
+        User user = userRepository.findByAccountAndIsDeletedFalse(account);
+        if (user == null) {
+            throw new Exception("用户不存在");
+        }
+        if (!bCryptPasswordEncoder.matches(password, user.getPassword())) {
+            throw new Exception("密码错误");
+        }
+        return user;
+    }
+
+    public List<User> getAllUsers() {return userRepository.findByIsDeletedFalse();}
 
     public User getUserById(int id) {return userRepository.findByIdAndIsDeletedFalse(id);}
 
@@ -35,6 +60,10 @@ public class UserService {
     public User removeUser(Integer userId) {
         User user = userRepository.findById(userId).orElse(null);
         if(user != null) {
+            Profile profile = profileReposity.findByIdAndIsDeletedFalse(userId);
+            if(profile != null) {
+                profile.setIsDeleted(true);
+            }
             user.setDeleted(true);
             return userRepository.save(user);
         }
