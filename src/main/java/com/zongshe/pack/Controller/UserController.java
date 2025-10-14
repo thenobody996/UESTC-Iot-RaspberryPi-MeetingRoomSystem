@@ -10,8 +10,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 
+import java.util.List;
+@Tag(name = "用户相关接口", description = "用户注册、登录、查询、删除等操作")
 @CrossOrigin(origins = "http://localhost:8089")
 @RestController
 @RequestMapping("/api/user")
@@ -26,8 +30,10 @@ public class UserController {
      * @param loginRequest
      * @return
      */
+    @Operation(summary = "用户注册", description = "注册新用户，传入账号和密码")
     @PostMapping("/register")
-    public Result<User> Register(@RequestBody LoginRequest loginRequest) {
+    public Result<User> Register(@Parameter(description = "登录请求体，包括账号和密码", required = true)
+                                     @RequestBody LoginRequest loginRequest) {
         try {
             User newUser = userService.register(
                     loginRequest.getAccount(),
@@ -42,8 +48,10 @@ public class UserController {
      * @param loginRequest
      * @return
      */
+    @Operation(summary = "用户登录", description = "用户登录，传入账号和密码,返回登录结果")
     @PostMapping("/login")
-    public Result<User> Login(@RequestBody LoginRequest loginRequest) {
+    public Result<User> Login(@Parameter(description = "登录请求体，包括账号和密码", required = true)
+                                  @RequestBody LoginRequest loginRequest) {
         try {
             User user = userService.login(
                     loginRequest.getAccount(),
@@ -58,6 +66,7 @@ public class UserController {
      * 获取所有用户信息
      * @return
      */
+    @Operation(summary = "获取所有用户信息", description = "返回所有未删除用户列表")
     @GetMapping("/")
     public ResponseEntity<List<User>> GetAllUser() {
         List<User> users = userService.getAllUsers();
@@ -68,8 +77,10 @@ public class UserController {
      * @param id
      * @return
      */
+    @Operation(summary = "按id查找用户", description = "路径变量为要查找的用户id,返回用户信息")
     @GetMapping("/{id}")
-    public ResponseEntity<User> GetUserById(@PathVariable Integer id) {
+    public ResponseEntity<User> GetUserById(@Parameter(description = "路径变量:用户id", required = true)
+                                                @PathVariable Integer id) {
         try {
             User user = userService.getUserById(id);
             return ResponseEntity.ok(user);
@@ -78,8 +89,15 @@ public class UserController {
         }
     }
 
+    /**
+     * 根据ID
+     * @param id
+     * @return
+     */
+    @Operation(summary = "按id删除用户", description = "路径变量为要删除的用户id")
     @DeleteMapping("/delete/{id}")
-    public Result<User> RemoveUserById(@PathVariable Integer id) {
+    public Result<User> RemoveUserById(@Parameter(description = "路径变量:用户id", required = true)
+                                           @PathVariable Integer id) {
         try {
             userService.removeUser(id);
             return Result.ok();
