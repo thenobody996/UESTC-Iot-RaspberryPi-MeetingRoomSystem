@@ -90,7 +90,24 @@ public class UserController {
     }
 
     /**
-     * 根据ID
+     * 根据账户名模糊搜索用户
+     * @param account
+     * @return
+     */
+    @Operation(summary = "按账户名模糊搜索用户", description = "路径变量为要搜索的账户名,返回匹配的用户列表")
+    @GetMapping("/search/{account}")
+    public ResponseEntity<List<User>> SearchUserByAccount(@Parameter(description = "查询参数:账户名", required = true)
+                                                    @PathVariable String account) {
+        try {
+            List<User> users = userService.searchUsersByAccount(account);
+            return ResponseEntity.ok(users);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        }
+    }
+
+    /**
+     * 根据ID删除用户
      * @param id
      * @return
      */

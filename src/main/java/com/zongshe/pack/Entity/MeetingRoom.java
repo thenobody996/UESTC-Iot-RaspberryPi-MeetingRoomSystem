@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "meetingroom")
@@ -40,12 +41,18 @@ public class MeetingRoom {
 
     @Getter
     @Column(name = "create_at" , updatable = false)
+    @org.hibernate.annotations.CreationTimestamp
     private LocalDateTime createAt;
 
     @Setter
     @Getter
     @Column(name = "update_at")
+    @org.hibernate.annotations.UpdateTimestamp
     private LocalDateTime updateAt;
+
+    @OneToMany(mappedBy = "place", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "place"})
+    private List<Meeting> meetings;
 
     @Column(name = "is_deleted")
     private Boolean isDeleted;

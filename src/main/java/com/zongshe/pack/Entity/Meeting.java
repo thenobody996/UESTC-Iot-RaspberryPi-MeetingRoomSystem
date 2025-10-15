@@ -33,7 +33,7 @@ public class Meeting {
      */
     @Setter
     @Getter
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "place_id", referencedColumnName = "id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private MeetingRoom place;
@@ -61,11 +61,13 @@ public class Meeting {
     @Setter
     @Getter
     @Column(name = "create_at" , updatable = false)
+    @org.hibernate.annotations.CreationTimestamp
     private LocalDateTime create_At;
 
     @Setter
     @Getter
     @Column(name = "update_at")
+    @org.hibernate.annotations.UpdateTimestamp
     private LocalDateTime update_At;
 
     @Column(name = "is_deleted")
@@ -78,6 +80,7 @@ public class Meeting {
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     private List<User> members;
+
 
     public Boolean getDeleted() {
         return isDeleted;

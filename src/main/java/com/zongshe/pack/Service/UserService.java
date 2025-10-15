@@ -47,6 +47,10 @@ public class UserService {
 
     public User getUserById(int id) {return userRepository.findByIdAndIsDeletedFalse(id);}
 
+    public List<User> searchUsersByAccount(String account) {
+        return userRepository.findByAccountContainingAndIsDeletedFalse(account);
+    }
+
     public User addUser(User user) {
         User savedUser = userRepository.save(user);
         //创建对应的个人资料
