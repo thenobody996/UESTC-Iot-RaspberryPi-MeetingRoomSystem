@@ -10,7 +10,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "用户个人资料接口",description = "用户个人资料更新")
-@CrossOrigin("http://localhost:8089")
+//@CrossOrigin("http://localhost:8089")
 @RestController
 @RequestMapping("/api/profile")
 public class ProfileController {

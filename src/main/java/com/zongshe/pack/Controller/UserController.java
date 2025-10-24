@@ -16,7 +16,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 
 import java.util.List;
 @Tag(name = "用户相关接口", description = "用户注册、登录、查询、删除等操作")
-@CrossOrigin(origins = "http://localhost:8089")
+//@CrossOrigin(origins = "http://localhost:8089")
 @RestController
 @RequestMapping("/api/user")
 public class UserController {

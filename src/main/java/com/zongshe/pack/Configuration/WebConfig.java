@@ -14,7 +14,7 @@ import java.util.Arrays;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
     // 1. 保留从配置文件读取允许源的逻辑
-    @Value("${cors.allowed-origins:}")
+    @Value("${cors.allowed-ports:8089}")
     private String allowedOrigins;
     /**
      * 跨域配置过滤器
