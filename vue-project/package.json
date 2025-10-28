@@ -20,6 +20,7 @@
     "cors": "^2.8.5",
     "dayjs": "^1.11.18",
     "element-plus": "^2.11.4",
+    "entities": "^7.0.0",
     "vue": "^3.5.18",
     "vue-axios": "^3.5.2",
     "vue-router": "^4.5.1"

@@ -1,85 +1,93 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { useRoute } from 'vue-router'
+import Navbar from '@/components/Navbar.vue'
+import { onMounted, onUnmounted, ref } from 'vue'
+
+const route = useRoute()
+const windowHeight = ref('100vh')
+
+// 处理移动端高度适配
+const updateHeight = () => {
+  windowHeight.value = `${window.innerHeight}px`
+}
+
+onMounted(() => {
+  updateHeight()
+  window.addEventListener('resize', updateHeight)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateHeight)
+})
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <div id="app" :style="{ height: windowHeight }">
+    <!-- 只有当路由没有设置 meta.hideSidebar 时显示侧栏 -->
+    <Navbar v-if="!route.meta?.hideSidebar" />
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
+    <!-- 主内容，若侧栏存在则应用左侧间距 -->
+    <div :class="['main-container', { 'with-sidebar': !route.meta?.hideSidebar }]">
+      <router-view />
     </div>
-  </header>
-
-  <RouterView />
+  </div>
 </template>
 
 <style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
+#app {
+  display: flex;
+  width: 100vw;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
+/* 移动端适配 */
+@media (max-width: 768px) {
+  #app {
+    flex-direction: column;
+  }
+
+  .main-container {
+    margin-left: 0 !important;
+    padding: 16px;
+    width: 100%;
+  }
 }
 
-nav {
+.main-container {
+  box-sizing: border-box;
+  flex: 1;
   width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
+  min-height: 100%;
+  transition: all 0.3s ease;
+  padding: 24px;
+  overflow: auto; /* 允许内容区域单独滚动 */
+  background-color: #f5f5f5; /* 可选：添加背景色更好地可视化区域 */
 }
 
-nav a.router-link-exact-active {
-  color: var(--color-text);
+/* 当侧栏存在时，给主内容左侧留出与侧栏相同的宽度 */
+.with-sidebar {
+  margin-left: 220px;
+  width: calc(100% - 220px);
 }
 
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
+/* 大屏幕优化 */
+@media (min-width: 1200px) {
+  .main-container {
+    padding: 32px;
   }
+}
 
-  .logo {
-    margin: 0 2rem 0 0;
+/* 超小屏幕优化 */
+@media (max-width: 480px) {
+  .main-container {
+    padding: 12px;
   }
+}
 
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
+/* 确保所有子元素都能正确继承高度 */
+#app > * {
+  box-sizing: border-box;
 }
 </style>
