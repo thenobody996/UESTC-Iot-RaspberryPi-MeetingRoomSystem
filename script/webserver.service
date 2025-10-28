@@ -1,0 +1,37 @@
+[Unit]
+Description=MyApp Spring Boot service
+After=network.target
+
+[Service]
+User=webserver
+Group=webserver
+
+WorkingDirectory=/opt/webserver
+
+EnvironmentFile=/etc/default/webserver/webserver.env
+Environment="JAVA_OPTS=-Xms256m -Xmx1024m"
+
+ExecStart=/usr/bin/java -jar /opt/webserver/zongshe-0.0.1-SNAPSHOT.jar
+SuccessExitStatus=143
+
+# 自动重启策略
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+
+
+# 日志输出
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=webserver-app
+
+ReadWritePaths=/var/webserver/log /opt/webserver /opt/webserver/backup
+
+[Install]
+WantedBy=multi-user.target

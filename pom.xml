@@ -129,5 +129,5 @@
             </properties>
         </profile>
     </profiles>
-
+    <packaging>jar</packaging>
 </project>
