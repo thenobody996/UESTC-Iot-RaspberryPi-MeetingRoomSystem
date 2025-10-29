@@ -9,7 +9,7 @@ import axios, {
 import type { BaseResponse } from '@/types/api'
 
 const service: AxiosInstance = axios.create({
-  baseURL: 'http://47.109.101.70:8088/api', // 添加基础URL
+  baseURL: '/api', // 添加基础URL
   timeout: 15000,
   withCredentials: false
 })

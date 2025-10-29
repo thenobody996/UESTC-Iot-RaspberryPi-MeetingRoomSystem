@@ -20,9 +20,20 @@ export default defineConfig({
     host: '0.0.0.0', // 可选：允许外部访问
     proxy: {
       '/api': {
-        target: 'http://47.109.101.70:8088/api',
+        target: 'http://localhost:8080/api',
         changeOrigin: true,
         secure: false,
+        configure: (proxy, options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            console.log('🚀 代理请求:', req.method, req.url, '->', proxyReq.protocol, '//', proxyReq.host, proxyReq.path)
+          })
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            console.log('🚀 代理响应:', proxyRes.statusCode, req.url)
+          })
+          proxy.on('error', (err, req, res) => {
+            console.log('🚀 代理错误:', err.message)
+          })
+        },
         rewrite: (path) => path.replace(/^\/api/, '')
       }
     }

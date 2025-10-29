@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
 import LoginRegister from "@/views/Login/LoginRegister.vue";
-import Meeting from '@/views/Meeting/Meeting.vue'
+import Meeting from '@/views/Meeting/MeetingPage.vue'
 import User from '@/views/User/User.vue'
 
 const router = createRouter({

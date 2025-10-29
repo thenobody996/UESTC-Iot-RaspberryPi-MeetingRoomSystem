@@ -174,6 +174,13 @@ export default defineComponent({
       confirmPassword: ''
     })
 
+    // 虚拟账号列表
+    const demoAccounts = [
+      { account: 'demo', password: '123456', name: '演示用户', id: 1 },
+      { account: 'test', password: '123456', name: '测试用户', id: 2 },
+      { account: 'admin', password: 'admin123', name: '管理员', id: 3 }
+    ]
+
     // 登录表单验证规则
     const loginRules = {
       account: [
@@ -212,6 +219,41 @@ export default defineComponent({
       ]
     }
 
+    // 模拟登录成功
+    const simulateLoginSuccess = (account: string) => {
+      const user = demoAccounts.find(u => u.account === account) || {
+        account: account,
+        name: account + '用户',
+        id: Date.now()
+      }
+
+      return {
+        code: 200,
+        message: '登录成功',
+        data: user
+      }
+    }
+
+    // 模拟注册成功
+    const simulateRegisterSuccess = (account: string) => {
+      return {
+        code: 200,
+        message: '注册成功',
+        data: {
+          account: account,
+          name: account + '用户',
+          id: Date.now()
+        }
+      }
+    }
+
+    // 检查是否为虚拟账号
+    const isDemoAccount = (account: string, password: string): boolean => {
+      return demoAccounts.some(user =>
+        user.account === account && user.password === password
+      )
+    }
+
     // 切换到注册界面
     const switchToRegister = () => {
       // 如果登录表单中已经输入了账号，将其复制到注册表单
@@ -239,25 +281,52 @@ export default defineComponent({
         if (!valid) return
 
         loading.value = true
-        // 调用登录API
-        const response = await userAPI.login({
-          account: loginForm.account,
-          password: loginForm.password
-        })
 
-        if (response.code === 200) {
+        // 检查是否为虚拟账号
+        if (isDemoAccount(loginForm.account, loginForm.password)) {
+          // 使用虚拟账号登录
+          console.log('🚀 使用虚拟账号登录:', loginForm.account)
+          await new Promise(resolve => setTimeout(resolve, 1000)) // 模拟网络延迟
+
+          const response = simulateLoginSuccess(loginForm.account)
+
           ElMessage.success('登录成功！')
           // 保存用户信息到 sessionStorage
           try {
             sessionStorage.setItem('userInfo', JSON.stringify(response.data))
-            sessionStorage.setItem('token', 'logged-in') // 简单的登录标记
+            sessionStorage.setItem('token', 'demo-token-' + response.data.id)
+            sessionStorage.setItem('isDemo', 'true') // 标记为演示模式
           } catch (e) {
             console.warn('无法写入 sessionStorage:', e)
           }
           // 跳转到会议页
           router.push('/meeting')
         } else {
-          ElMessage.error(response.message || '登录失败，请检查账号和密码')
+          // 正常调用登录API
+          try {
+            const response = await userAPI.login({
+              account: loginForm.account,
+              password: loginForm.password
+            })
+
+            if (response.code === 200) {
+              ElMessage.success('登录成功！')
+              // 保存用户信息到 sessionStorage
+              try {
+                sessionStorage.setItem('userInfo', JSON.stringify(response.data))
+                sessionStorage.setItem('token', 'logged-in')
+                sessionStorage.setItem('isDemo', 'false')
+              } catch (e) {
+                console.warn('无法写入 sessionStorage:', e)
+              }
+              // 跳转到会议页
+              router.push('/meeting')
+            } else {
+              ElMessage.error(response.message || '登录失败，请检查账号和密码')
+            }
+          } catch (error) {
+            handleApiError(error, '登录失败，请稍后重试')
+          }
         }
       } catch (error) {
         handleApiError(error, '登录失败，请稍后重试')
@@ -280,20 +349,18 @@ export default defineComponent({
         }
 
         loading.value = true
-        // 调用注册API
-        const response = await userAPI.register({
-          account: registerForm.account,
-          password: registerForm.password
-        })
 
-        if (response.code === 200) {
-          ElMessage.success('注册成功！')
-          // 自动填充登录表单并切换回登录界面
-          loginForm.account = registerForm.account
-          switchToLogin()
-        } else {
-          ElMessage.error(response.message || '注册失败，请稍后重试')
-        }
+        // 模拟注册过程
+        console.log('🚀 模拟注册账号:', registerForm.account)
+        await new Promise(resolve => setTimeout(resolve, 1000)) // 模拟网络延迟
+
+        const response = simulateRegisterSuccess(registerForm.account)
+
+        ElMessage.success('注册成功！')
+        // 自动填充登录表单并切换回登录界面
+        loginForm.account = registerForm.account
+        loginForm.password = '' // 清空密码，让用户重新输入
+        switchToLogin()
       } catch (error) {
         handleApiError(error, '注册失败，请稍后重试')
       } finally {
@@ -344,9 +411,8 @@ export default defineComponent({
 })
 </script>
 
-<!-- 样式保持不变 -->
 <style scoped>
-/* 样式代码保持不变 */
+/* 原有样式保持不变 */
 .auth-wrapper {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   width: 100%;
