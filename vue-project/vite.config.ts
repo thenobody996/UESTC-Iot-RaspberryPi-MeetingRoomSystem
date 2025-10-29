@@ -20,7 +20,7 @@ export default defineConfig({
     host: '0.0.0.0', // 可选：允许外部访问
     proxy: {
       '/api': {
-        target: 'http://localhost:8080/api',
+        target: 'http://localhost:8088/api',
         changeOrigin: true,
         secure: false,
         configure: (proxy, options) => {

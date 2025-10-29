@@ -309,7 +309,7 @@ export default defineComponent({
               password: loginForm.password
             })
 
-            if (response.code === 200) {
+            if (response.code === 20000) {
               ElMessage.success('登录成功！')
               // 保存用户信息到 sessionStorage
               try {
