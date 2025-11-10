@@ -40,6 +40,11 @@ public class MeetingRoom {
     private String description;
 
     @Getter
+    @Setter
+    @Column(name = "locateURL")
+    private String locateURL;
+
+    @Getter
     @Column(name = "create_at" , updatable = false)
     @org.hibernate.annotations.CreationTimestamp
     private LocalDateTime createAt;
@@ -54,14 +59,9 @@ public class MeetingRoom {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "place"})
     private List<Meeting> meetings;
 
+    @Getter
+    @Setter
     @Column(name = "is_deleted")
     private Boolean isDeleted;
 
-    public Boolean getDeleted() {
-        return isDeleted;
-    }
-
-    public void setDeleted(Boolean deleted) {
-        isDeleted = deleted;
-    }
 }

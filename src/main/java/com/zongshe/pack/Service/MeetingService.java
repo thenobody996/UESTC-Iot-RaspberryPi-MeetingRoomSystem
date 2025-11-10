@@ -16,7 +16,22 @@ public class MeetingService {
     @Autowired
     private MeetingRepository meetingRepository;
 
-    public Meeting addMeeting(Meeting meeting) {
+    public Meeting addMeeting(Integer id, String title, String description,
+                              LocalDateTime start, LocalDateTime end,
+                              User hoster, MeetingRoom place,
+                              List<User> members) throws Exception {
+        Meeting meeting = new Meeting();
+        meeting.setId(id);
+        meeting.setTitle(title);
+        meeting.setDescription(description);
+        meeting.setStartTime(start);
+        meeting.setEndTime(end);
+        meeting.setHoster(hoster);
+        meeting.setPlace(place);
+        for (User member : members) {
+            meeting.addMember(member);
+        }
+
         return meetingRepository.save(meeting);
     }
 

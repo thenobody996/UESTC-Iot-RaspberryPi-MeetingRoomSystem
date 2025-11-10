@@ -9,6 +9,8 @@ import java.util.List;
 @Repository
 public interface UserRepository extends JpaRepository<User, Integer> {
 
+    Long countByIsDeletedFalse();
+
     /**
      * 查找所有未删除的用户
      * @return

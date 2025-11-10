@@ -14,6 +14,8 @@ import java.util.List;
 @Repository
 public interface MeetingRepository extends JpaRepository<Meeting, Integer> {
 
+    Long countByIsDeletedFalse();
+
     List<Meeting> findByIsDeletedFalse();
 
     Meeting findByIdAndIsDeletedFalse(Integer id);

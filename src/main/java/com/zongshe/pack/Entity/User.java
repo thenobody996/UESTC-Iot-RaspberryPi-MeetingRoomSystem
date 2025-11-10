@@ -7,7 +7,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 
 @Entity
@@ -60,13 +62,24 @@ public class User {
     @Column(name = "is_deleted",nullable = false)
     private Boolean isDeleted = false;
 
+    @Getter
     @ManyToMany
     @JoinTable(
             name = "user_meeting",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "meeting_id")
     )
-    private List<Meeting> meetings;
+    private Set<Meeting> meetings = new HashSet<>();
+
+    public void joinMeeting(Meeting meeting) {
+        if (meeting == null) return;
+        this.meetings.add(meeting);
+    }
+
+    public void leaveMeeting(Meeting meeting) {
+        if (meeting == null) return;
+        this.meetings.remove(meeting);
+    }
 
     public Boolean getDeleted() {
         return isDeleted;
