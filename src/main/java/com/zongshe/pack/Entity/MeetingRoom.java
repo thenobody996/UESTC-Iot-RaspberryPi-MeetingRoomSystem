@@ -1,6 +1,8 @@
 package com.zongshe.pack.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -8,6 +10,8 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
+@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
 @Table(name = "meetingroom")
 public class MeetingRoom {
@@ -58,6 +62,14 @@ public class MeetingRoom {
     @OneToMany(mappedBy = "place", fetch = FetchType.LAZY)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "place"})
     private List<Meeting> meetings;
+
+    public void AddMeeting(Meeting meeting){
+        this.meetings.add(meeting);
+    }
+
+    public void RemoveMeeting(Meeting meeting){
+        this.meetings.remove(meeting);
+    }
 
     @Getter
     @Setter

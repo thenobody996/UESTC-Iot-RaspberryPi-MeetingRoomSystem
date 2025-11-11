@@ -16,22 +16,28 @@ public class MeetingService {
     @Autowired
     private MeetingRepository meetingRepository;
 
-    public Meeting addMeeting(Integer id, String title, String description,
+
+    @Autowired UserService userService;
+
+    public Meeting addMeeting(String title, String description,
                               LocalDateTime start, LocalDateTime end,
                               User hoster, MeetingRoom place,
-                              List<User> members) throws Exception {
+                              List<Integer> members) throws Exception {
         Meeting meeting = new Meeting();
-        meeting.setId(id);
         meeting.setTitle(title);
         meeting.setDescription(description);
         meeting.setStartTime(start);
         meeting.setEndTime(end);
         meeting.setHoster(hoster);
         meeting.setPlace(place);
-        for (User member : members) {
-            meeting.addMember(member);
+        meeting.setDeleted(false);
+        for (Integer member : members) {
+            User user = userService.getUserById(member);
+            meeting.addMember(user);
+            user.joinMeeting(meeting);
         }
 
+        place.AddMeeting(meeting);
         return meetingRepository.save(meeting);
     }
 
@@ -43,6 +49,10 @@ public class MeetingService {
         return meetingRepository.findByIsDeletedFalse();
     }
 
+    public Long countMeetings() {
+        return meetingRepository.countByIsDeletedFalse();
+    }
+
     public Meeting updateMeeting(Integer id, String title, String description, LocalDateTime start, LocalDateTime end) throws Exception {
         Meeting meeting = meetingRepository.findByIdAndIsDeletedFalse(id);
         if (meeting != null) {
@@ -50,6 +60,42 @@ public class MeetingService {
             if (description != null) meeting.setDescription(description);
             if (start != null) meeting.setStartTime(start);
             if (end != null) meeting.setEndTime(end);
+            return meetingRepository.save(meeting);
+        } else {
+            throw new Exception("未查找到对应会议数据");
+        }
+    }
+
+    public Meeting addMember(Integer id, Integer member) throws Exception {
+        Meeting meeting = meetingRepository.findByIdAndIsDeletedFalse(id);
+        if (meeting != null && userService.getUserById(member) != null) {
+            meeting.addMember(userService.getUserById(member));
+            return meetingRepository.save(meeting);
+        } else {
+            throw new Exception("未查找到对应会议数据");
+        }
+    }
+
+    public Meeting removeMember(Integer id, Integer member) throws Exception {
+        Meeting meeting = meetingRepository.findByIdAndIsDeletedFalse(id);
+        if (meeting != null && userService.getUserById(member) != null) {
+            meeting.removeMember(userService.getUserById(member));
+            return meetingRepository.save(meeting);
+        } else {
+            throw new Exception("未查找到对应会议数据");
+        }
+    }
+
+    public Meeting updateMembers(Integer id, List<Integer> members) throws Exception {
+        Meeting meeting = meetingRepository.findByIdAndIsDeletedFalse(id);
+        if (meeting != null) {
+            for (User member : meeting.getMembers()) {
+                meeting.removeMember(member);
+            }
+            for (Integer member : members) {
+                if(userService.getUserById(member) != null)
+                    meeting.addMember(userService.getUserById(member));
+            }
             return meetingRepository.save(meeting);
         } else {
             throw new Exception("未查找到对应会议数据");

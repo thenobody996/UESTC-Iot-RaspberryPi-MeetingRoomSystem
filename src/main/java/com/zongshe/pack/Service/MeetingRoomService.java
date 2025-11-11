@@ -30,7 +30,7 @@ public class MeetingRoomService {
     }
 
     public MeetingRoom getMeetingRoomById(Integer id) {
-        return meetingRoomRepository.findByMeetingRoomIdAndIsDeletedFalse(id);
+        return meetingRoomRepository.findByIdAndIsDeletedFalse(id);
     }
 
     public List<MeetingRoom> searchMeetingRoomsByName(String name, Integer page, Integer pageSize) {
@@ -52,6 +52,7 @@ public class MeetingRoomService {
         meetingRoom.setDescription(meetingRoomRequest.getDescription());
         meetingRoom.setLocateURL(meetingRoomRequest.getLocateURL());
         meetingRoom.setUpdateAt(LocalDateTime.now());
+        meetingRoom.setIsDeleted(false);
         return meetingRoomRepository.save(meetingRoom);
     }
 

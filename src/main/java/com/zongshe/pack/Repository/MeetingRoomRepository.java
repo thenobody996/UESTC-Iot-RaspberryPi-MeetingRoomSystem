@@ -14,7 +14,7 @@ public interface MeetingRoomRepository extends JpaRepository<MeetingRoom, Intege
 
     Page<MeetingRoom> findByIsDeletedIsFalse(Pageable pageable);
 
-    MeetingRoom findByMeetingRoomIdAndIsDeletedFalse(Integer meetingRoomId);
+    MeetingRoom findByIdAndIsDeletedFalse(Integer meetingRoomId);
 
     Page<MeetingRoom> findByNameContainingAndIsDeletedFalse(String name, Pageable pageable);
 }

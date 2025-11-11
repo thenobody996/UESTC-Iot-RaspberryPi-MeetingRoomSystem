@@ -1,12 +1,14 @@
 package com.zongshe.pack.Controller;
 
 import com.zongshe.pack.Common.MeetingRoomRequest;
+import com.zongshe.pack.Common.Result;
 import com.zongshe.pack.Entity.Meeting;
 import com.zongshe.pack.Entity.MeetingRoom;
 import com.zongshe.pack.Service.MeetingRoomService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -49,6 +51,8 @@ public class MeetingRoomController {
         return ResponseEntity.ok().body(meetingRoomService.getMeetingRoomById(id));
     }
 
+    @GetMapping("/search/{name}")
+    @Operation(summary = "根据名称模糊查询会议室", description = "传入会议室名称的部分字符串,分页参数{page,size},获取分页的会议室列表")
     public ResponseEntity<Object> GetRoomsByName(
             @PathVariable String name,
             @RequestParam(defaultValue = "0") Integer page,
@@ -64,10 +68,14 @@ public class MeetingRoomController {
 
     @Operation(summary = "创建新会议室", description = "请求体构造会议室相关信息,创建新会议室")
     @PostMapping("/")
-    public ResponseEntity<MeetingRoom> PostNewRoom(
+    public ResponseEntity<Result<MeetingRoom>> PostNewRoom(
             @RequestBody MeetingRoomRequest request) throws Exception {
-        MeetingRoom newRoom = new MeetingRoom();
-        return ResponseEntity.ok().body(meetingRoomService.setMeetingRoom(newRoom,request));
+        try {
+            MeetingRoom newRoom = new MeetingRoom();
+            return ResponseEntity.ok().body(Result.ok(meetingRoomService.setMeetingRoom(newRoom, request),"会议室创建成功"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Result.fail(e.getMessage()));
+        }
     }
 
     @Operation(summary = "更新会议室相关信息", description = "提供要修改的会议室id和修改信息")

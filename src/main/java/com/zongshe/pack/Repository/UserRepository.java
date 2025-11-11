@@ -1,7 +1,10 @@
 package com.zongshe.pack.Repository;
 
+import com.zongshe.pack.Entity.Meeting;
 import com.zongshe.pack.Entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -37,5 +40,9 @@ public interface UserRepository extends JpaRepository<User, Integer> {
      * @return
      */
     List<User> findByAccountContainingAndIsDeletedFalse(String username);
+
+
+    @Query("select m from User u join u.meetings m where u.id = :userId and m.isDeleted = false")
+    List<Meeting> findActiveMeetingsByUserId(@Param("userId") Integer userId);
 
 }
