@@ -3,6 +3,7 @@ package com.zongshe.pack.Controller;
 
 import com.zongshe.pack.Common.LoginRequest;
 import com.zongshe.pack.Common.Result;
+import com.zongshe.pack.Entity.Meeting;
 import com.zongshe.pack.Entity.User;
 import com.zongshe.pack.Service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -116,10 +117,20 @@ public class UserController {
     public Result<User> RemoveUserById(@Parameter(description = "路径变量:用户id", required = true)
                                            @PathVariable Integer id) {
         try {
-            userService.removeUser(id);
-            return Result.ok();
+            return Result.ok(userService.removeUser(id),"删除成功");
         } catch (Exception e) {
             return Result.fail(e.getMessage());
+        }
+    }
+
+    @Operation(summary = "获取用户加入的会议", description = "路径变量为用户id,返回该用户加入的会议列表")
+    @GetMapping("/joinedmeetings/{userId}")
+    public ResponseEntity<List<Meeting>> getJoinedMeetings(@PathVariable Integer userId) {
+        try {
+            List<Meeting> meetings = userService.findJoinedMeetings(userId);
+            return ResponseEntity.ok(meetings);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.zongshe.pack.Service;
 
+import com.zongshe.pack.Entity.Meeting;
 import com.zongshe.pack.Entity.Profile;
 import com.zongshe.pack.Entity.User;
 import com.zongshe.pack.Repository.ProfileReposity;
@@ -70,6 +71,14 @@ public class UserService {
             }
             user.setDeleted(true);
             return userRepository.save(user);
+        }
+        return null;
+    }
+
+    public List<Meeting> findJoinedMeetings(Integer userId){
+        User user = userRepository.findByIdAndIsDeletedFalse(userId);
+        if(user != null){
+            return userRepository.findActiveMeetingsByUserId(userId);
         }
         return null;
     }

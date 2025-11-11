@@ -129,7 +129,7 @@ public class MeetingController {
         }
     }
 
-    @Operation(summary = "向会议添加成员",description = "根据会议ID添加会议成员,使用两次.data解引用")
+    @Operation(summary = "删除成员",description = "根据会议ID删除会议成员,使用两次.data解引用")
     @PostMapping("/removemember/{id}")
     public ResponseEntity<Result<Meeting>> RemoveMembers(
             @PathVariable Integer id,
