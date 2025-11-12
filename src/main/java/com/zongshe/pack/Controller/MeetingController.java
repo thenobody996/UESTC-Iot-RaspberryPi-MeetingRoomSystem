@@ -58,9 +58,9 @@ public class MeetingController {
         return ResponseEntity.ok().body(meetingService.getMeetingById(id));
     }
 
-    @Operation(summary = "创建新会议",description = "注意使用两次.data进行解引用")
+    @Operation(summary = "创建新会议")
     @PostMapping("/")
-    public ResponseEntity<Result<Meeting>> PostNewMeeting(@RequestBody MeetingRequest request) throws Exception {
+    public ResponseEntity<Meeting> PostNewMeeting(@RequestBody MeetingRequest request) throws Exception {
         try {
             Meeting result = meetingService.addMeeting(
                     request.getTitle(),
@@ -71,18 +71,18 @@ public class MeetingController {
                     meetingRoomService.getMeetingRoomById(request.getPlace_id()),
                     request.getMembers_id()
             );
-            return ResponseEntity.ok().body(Result.ok(result,"会议创建成功"));
+            return ResponseEntity.ok().body(result);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Result.fail(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @Operation(summary = "更新会议信息(不含成员信息)",description = "根据会议ID更新会议信息，注意不包含成员信息的更新,使用两次.data解引用")
     @PutMapping("/{id}")
-    public ResponseEntity<Result<Meeting>> UpdateMeeting(@PathVariable Integer id, @RequestBody MeetingRequest request) {
+    public ResponseEntity<Meeting> UpdateMeeting(@PathVariable Integer id, @RequestBody MeetingRequest request) {
         try {
             if(meetingService.getMeetingById(id) == null){
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Result.fail("会议不存在或已删除"));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
             }
             Meeting result = meetingService.updateMeeting(
                     id,
@@ -91,9 +91,9 @@ public class MeetingController {
                     request.getStart_time(),
                     request.getEnd_time()
             );
-            return ResponseEntity.ok().body(Result.ok(result,"会议更新成功"));
+            return ResponseEntity.ok().body(result);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Result.fail(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
@@ -115,48 +115,48 @@ public class MeetingController {
 
     @Operation(summary = "向会议添加成员",description = "根据会议ID添加会议成员,使用两次.data解引用")
     @PostMapping("/addmember/{id}")
-    public ResponseEntity<Result<Meeting>> AddMembers(
+    public ResponseEntity<Meeting> AddMembers(
             @PathVariable Integer id,
             @RequestParam Integer member) {
         try {
             if(meetingService.getMeetingById(id) == null){
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Result.fail("会议不存在或已删除"));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
             }
             Meeting result = meetingService.addMember(id, member);
-            return ResponseEntity.ok().body(Result.ok(result));
+            return ResponseEntity.ok().body(result);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Result.fail(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @Operation(summary = "删除成员",description = "根据会议ID删除会议成员,使用两次.data解引用")
+    @Operation(summary = "删除成员",description = "根据会议ID删除会议成员")
     @PostMapping("/removemember/{id}")
-    public ResponseEntity<Result<Meeting>> RemoveMembers(
+    public ResponseEntity<Meeting> RemoveMembers(
             @PathVariable Integer id,
             @RequestParam Integer member) {
         try {
             if(meetingService.getMeetingById(id) == null){
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Result.fail("会议不存在或已删除"));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
             }
             Meeting result = meetingService.removeMember(id, member);
-            return ResponseEntity.ok().body(Result.ok(result));
+            return ResponseEntity.ok().body(result);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Result.fail(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @Operation(summary = "删除会议",description = "根据会议ID删除会议,使用两次.data解引用")
+    @Operation(summary = "删除会议",description = "根据会议ID删除会议")
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<Result<Meeting>> DeleteMeeting(@PathVariable Integer id) {
+    public ResponseEntity<Meeting> DeleteMeeting(@PathVariable Integer id) {
         try {
             Meeting meeting = meetingService.getMeetingById(id);
             if(meeting == null){
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Result.fail("会议不存在或已删除"));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
             }
             Meeting result = meetingService.deleteMeeting(id);
-            return ResponseEntity.ok().body(Result.ok(result,"会议删除成功"));
+            return ResponseEntity.ok().body(result);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Result.fail(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 }

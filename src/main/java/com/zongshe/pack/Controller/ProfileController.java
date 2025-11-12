@@ -7,7 +7,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
 
 @Tag(name = "用户个人资料接口",description = "用户个人资料更新")
 @CrossOrigin("http://localhost:8089")
@@ -17,6 +25,9 @@ public class ProfileController {
 
     @Autowired
     private ProfileService profileService;
+
+    @Value("${profile.upload.directory}")
+    private String uploadDir;
 
     @Operation(summary = "个人资料更新", description = "路径变量传入个人资料对应id,请求体必须有用户名(注意区别user的account),邮箱,图片url")
     @PutMapping("/{id}")
@@ -29,5 +40,28 @@ public class ProfileController {
         catch (Exception e){
             return Result.fail(e.getMessage());
         }
+    }
+
+    @PostMapping("/uploadAvatar")
+    @Operation(summary = "上传头像", description = "上传头像图片，返回图片访问URL")
+    public Result<String> uploadAvatar(@RequestParam("avatar")MultipartFile avatar) {
+        try{
+            String fileName = UUID.randomUUID().toString() + "."  + getFileExtension(avatar.getOriginalFilename());
+            Path targetLocation = Paths.get(uploadDir, fileName);
+            Files.createDirectories(targetLocation);
+            Files.copy(avatar.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            String fileUrl = "/profile/" + fileName; // 假设这是访问URL的格式
+            return Result.ok(fileUrl);
+        } catch (Exception e){
+            return Result.fail(e.getMessage());
+        }
+    }
+    // 获取文件扩展名
+    private String getFileExtension(String fileName) {
+        int index = fileName.lastIndexOf('.');
+        if (index == -1) {
+            return ""; // 没有扩展名
+        }
+        return fileName.substring(index + 1);
     }
 }
