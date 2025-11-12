@@ -20,7 +20,7 @@ export default defineConfig({
     host: '0.0.0.0', // 可选：允许外部访问
     proxy: {
       '/api': {
-        target: 'http://localhost:8088/api',
+        target: 'http://localhost:8088',
         changeOrigin: true,
         secure: false,
         configure: (proxy, options) => {
@@ -34,7 +34,7 @@ export default defineConfig({
             console.log('🚀 代理错误:', err.message)
           })
         },
-        rewrite: (path) => path.replace(/^\/api/, '')
+        rewrite: (path) => path.replace(/^\/api/, '/api')
       }
     }
 
