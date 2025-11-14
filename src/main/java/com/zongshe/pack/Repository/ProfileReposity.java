@@ -15,4 +15,6 @@ public interface ProfileReposity extends JpaRepository<Profile, Integer> {
 
     Profile findByUserAndIsDeletedFalse(User user);
 
+    Profile findByUserAndIsDeletedTrue(User user);
+
 }

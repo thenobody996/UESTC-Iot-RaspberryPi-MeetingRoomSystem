@@ -3,6 +3,7 @@ package com.zongshe.pack.Controller;
 import com.zongshe.pack.Common.Result;
 import com.zongshe.pack.Entity.Profile;
 import com.zongshe.pack.Service.ProfileService;
+import com.zongshe.pack.Service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Map;
 import java.util.UUID;
 
 @Tag(name = "用户个人资料接口",description = "用户个人资料更新")
@@ -25,6 +27,9 @@ public class ProfileController {
 
     @Autowired
     private ProfileService profileService;
+
+    @Autowired
+    private UserService userService;
 
     @Value("${profile.upload.directory}")
     private String uploadDir;
@@ -43,7 +48,7 @@ public class ProfileController {
     }
 
     @PostMapping("/uploadAvatar")
-    @Operation(summary = "上传头像", description = "上传头像图片，返回图片访问URL")
+    @Operation(summary = "上传头像", description = "上传头像图片，返回图片访问URL，需要使用这个URL更新个人资料的头像字段")
     public Result<String> uploadAvatar(@RequestParam("avatar")MultipartFile avatar) {
         try{
             String fileName = UUID.randomUUID().toString() + "."  + getFileExtension(avatar.getOriginalFilename());
