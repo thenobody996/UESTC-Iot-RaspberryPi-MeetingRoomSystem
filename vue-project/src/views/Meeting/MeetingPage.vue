@@ -65,6 +65,7 @@
               <div class="meeting-info">
                 <div class="meeting-title">{{ meeting.title }}</div>
                 <div class="meeting-details">
+                  <span class="meeting-id">ID: {{ meeting.meetingId }}</span>
                   <span class="meeting-room">{{ meeting.room }}</span>
                   <span class="meeting-participants">{{ meeting.participants }} 人参加</span>
                   <span v-if="meeting.hasPassword" class="password-tag">有密码</span>
@@ -95,18 +96,6 @@
               <p>今日暂无会议安排</p>
             </div>
           </div>
-        </div>
-
-        <!-- 圆形添加按钮 -->
-        <div class="add-button-wrapper">
-          <el-button
-            class="add-schedule-btn"
-            type="primary"
-            circle
-            @click="handleAddSchedule"
-          >
-            <el-icon size="24"><Plus /></el-icon>
-          </el-button>
         </div>
       </div>
     </div>
@@ -281,6 +270,149 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 会议记录对话框 -->
+    <el-dialog
+      v-model="showMeetingRecordsDialog"
+      title="会议记录"
+      width="800px"
+      center
+    >
+      <div class="meeting-records-container">
+        <!-- 今天 -->
+        <div v-if="todayRecords.length > 0" class="record-section">
+          <h3 class="section-title">今天</h3>
+          <div class="record-list">
+            <div
+              v-for="(record, index) in todayRecords"
+              :key="index"
+              class="record-item"
+            >
+              <div class="record-time">
+                <div class="date">{{ formatDate(record.startTime, 'MM-DD') }}</div>
+                <div class="time-duration">
+                  {{ formatDate(record.startTime, 'HH:mm') }} / {{ record.duration }}
+                </div>
+              </div>
+              <div class="record-info">
+                <div class="record-title">{{ record.title }}</div>
+                <div class="record-details">
+                  <span class="record-id">ID: {{ record.meetingId }}</span>
+                  <span class="record-room">{{ record.room }}</span>
+                  <span class="record-participants">{{ record.participants }} 人参加</span>
+                </div>
+              </div>
+              <div class="record-actions">
+                <el-button type="primary" size="small" @click="viewRecordDetails(record)">
+                  查看
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 昨天 -->
+        <div v-if="yesterdayRecords.length > 0" class="record-section">
+          <h3 class="section-title">昨天</h3>
+          <div class="record-list">
+            <div
+              v-for="(record, index) in yesterdayRecords"
+              :key="index"
+              class="record-item"
+            >
+              <div class="record-time">
+                <div class="date">{{ formatDate(record.startTime, 'MM-DD') }}</div>
+                <div class="time-duration">
+                  {{ formatDate(record.startTime, 'HH:mm') }} / {{ record.duration }}
+                </div>
+              </div>
+              <div class="record-info">
+                <div class="record-title">{{ record.title }}</div>
+                <div class="record-details">
+                  <span class="record-id">ID: {{ record.meetingId }}</span>
+                  <span class="record-room">{{ record.room }}</span>
+                  <span class="record-participants">{{ record.participants }} 人参加</span>
+                </div>
+              </div>
+              <div class="record-actions">
+                <el-button type="primary" size="small" @click="viewRecordDetails(record)">
+                  查看
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 七天内 -->
+        <div v-if="weekRecords.length > 0" class="record-section">
+          <h3 class="section-title">七天内</h3>
+          <div class="record-list">
+            <div
+              v-for="(record, index) in weekRecords"
+              :key="index"
+              class="record-item"
+            >
+              <div class="record-time">
+                <div class="date">{{ formatDate(record.startTime, 'MM-DD') }}</div>
+                <div class="time-duration">
+                  {{ formatDate(record.startTime, 'HH:mm') }} / {{ record.duration }}
+                </div>
+              </div>
+              <div class="record-info">
+                <div class="record-title">{{ record.title }}</div>
+                <div class="record-details">
+                  <span class="record-id">ID: {{ record.meetingId }}</span>
+                  <span class="record-room">{{ record.room }}</span>
+                  <span class="record-participants">{{ record.participants }} 人参加</span>
+                </div>
+              </div>
+              <div class="record-actions">
+                <el-button type="primary" size="small" @click="viewRecordDetails(record)">
+                  查看
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 更早 -->
+        <div v-if="earlierRecords.length > 0" class="record-section">
+          <h3 class="section-title">更早</h3>
+          <div class="record-list">
+            <div
+              v-for="(record, index) in earlierRecords"
+              :key="index"
+              class="record-item"
+            >
+              <div class="record-time">
+                <div class="date">{{ formatDate(record.startTime, 'YYYY-MM-DD') }}</div>
+                <div class="time-duration">
+                  {{ formatDate(record.startTime, 'HH:mm') }} / {{ record.duration }}
+                </div>
+              </div>
+              <div class="record-info">
+                <div class="record-title">{{ record.title }}</div>
+                <div class="record-details">
+                  <span class="record-id">ID: {{ record.meetingId }}</span>
+                  <span class="record-room">{{ record.room }}</span>
+                  <span class="record-participants">{{ record.participants }} 人参加</span>
+                </div>
+              </div>
+              <div class="record-actions">
+                <el-button type="primary" size="small" @click="viewRecordDetails(record)">
+                  查看
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="allRecords.length === 0" class="empty-records">
+          <el-icon><Document /></el-icon>
+          <p>暂无会议记录</p>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -354,6 +486,66 @@ const currentDate = reactive({
 // 今日会议日程 - 初始为空
 const todayMeetings = ref<Meeting[]>([])
 
+// 所有会议记录（包括过去的会议）
+const allRecords = ref<Meeting[]>([
+  // 今天
+  {
+    id: 1,
+    title: '产品需求评审会议',
+    startTime: dayjs().format('YYYY-MM-DD 09:30'),
+    endTime: dayjs().format('YYYY-MM-DD 10:30'),
+    duration: '1小时',
+    room: '会议室1',
+    participants: 8,
+    isActive: false,
+    time: '09:30',
+    hasPassword: false,
+    meetingId: 'M12345678'
+  },
+  // 昨天
+  {
+    id: 2,
+    title: '技术方案讨论',
+    startTime: dayjs().subtract(1, 'day').format('YYYY-MM-DD 14:00'),
+    endTime: dayjs().subtract(1, 'day').format('YYYY-MM-DD 15:00'),
+    duration: '1小时',
+    room: '会议室2',
+    participants: 5,
+    isActive: false,
+    time: '14:00',
+    hasPassword: true,
+    meetingId: 'M23456789'
+  },
+  // 3天前
+  {
+    id: 3,
+    title: '项目进度同步会',
+    startTime: dayjs().subtract(3, 'day').format('YYYY-MM-DD 16:30'),
+    endTime: dayjs().subtract(3, 'day').format('YYYY-MM-DD 17:00'),
+    duration: '30分钟',
+    room: '会议室1',
+    participants: 12,
+    isActive: false,
+    time: '16:30',
+    hasPassword: false,
+    meetingId: 'M34567890'
+  },
+  // 10天前
+  {
+    id: 4,
+    title: '月度总结会议',
+    startTime: dayjs().subtract(10, 'day').format('YYYY-MM-DD 10:00'),
+    endTime: dayjs().subtract(10, 'day').format('YYYY-MM-DD 11:30'),
+    duration: '1.5小时',
+    room: '会议室2',
+    participants: 15,
+    isActive: false,
+    time: '10:00',
+    hasPassword: false,
+    meetingId: 'M45678901'
+  }
+])
+
 // 会议室列表
 const rooms = ref<Room[]>([
   { id: 1, name: '会议室1', available: true },
@@ -385,6 +577,9 @@ const joinMeetingForm = reactive<JoinMeetingForm>({
   password: '',
   hasPassword: false
 })
+
+// 会议记录对话框
+const showMeetingRecordsDialog = ref(false)
 
 // 表单验证规则
 const meetingRules: FormRules = {
@@ -447,6 +642,38 @@ const availableRooms = computed(() => {
       available: !isOccupied
     }
   })
+})
+
+// 计算会议记录分组
+const todayRecords = computed(() => {
+  const today = dayjs().format('YYYY-MM-DD')
+  return allRecords.value.filter(record =>
+    dayjs(record.startTime).format('YYYY-MM-DD') === today
+  )
+})
+
+const yesterdayRecords = computed(() => {
+  const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD')
+  return allRecords.value.filter(record =>
+    dayjs(record.startTime).format('YYYY-MM-DD') === yesterday
+  )
+})
+
+const weekRecords = computed(() => {
+  const weekAgo = dayjs().subtract(7, 'day')
+  const twoDaysAgo = dayjs().subtract(2, 'day')
+
+  return allRecords.value.filter(record => {
+    const recordDate = dayjs(record.startTime)
+    return recordDate.isAfter(weekAgo) && recordDate.isBefore(twoDaysAgo, 'day')
+  })
+})
+
+const earlierRecords = computed(() => {
+  const weekAgo = dayjs().subtract(7, 'day')
+  return allRecords.value.filter(record =>
+    dayjs(record.startTime).isBefore(weekAgo)
+  )
 })
 
 // 计算结束时间（当选择固定时长时）
@@ -591,6 +818,11 @@ const getCurrentUser = () => {
   return '用户'
 }
 
+// 格式化日期
+const formatDate = (dateString: string, format: string) => {
+  return dayjs(dateString).format(format)
+}
+
 // 左侧功能按钮处理
 const handleJoinMeeting = () => {
   showJoinDialog.value = true
@@ -651,8 +883,7 @@ const handleScheduleMeeting = () => {
 }
 
 const handleMeetingRecords = () => {
-  ElMessage.info('跳转到会议记录页面')
-  // 实际开发中这里可以跳转到会议记录页面
+  showMeetingRecordsDialog.value = true
 }
 
 // 加入已安排的会议
@@ -798,6 +1029,12 @@ const confirmJoinMeeting = async () => {
     console.error('表单验证失败:', error)
     ElMessage.error('加入会议失败，请重试')
   }
+}
+
+// 查看会议记录详情
+const viewRecordDetails = (record: Meeting) => {
+  ElMessage.info(`查看会议记录: ${record.title}`)
+  // 在实际应用中，这里可以跳转到会议详情页面或显示更多信息
 }
 
 onMounted(() => {
@@ -1013,6 +1250,11 @@ onMounted(() => {
   color: #6c757d;
 }
 
+.meeting-id {
+  font-weight: 600;
+  color: #5b7cfa;
+}
+
 .meeting-room {
   padding: 2px 6px;
   background: #e9ecef;
@@ -1047,22 +1289,115 @@ onMounted(() => {
   font-size: 14px;
 }
 
-/* 圆形添加按钮 */
-.add-button-wrapper {
-  position: absolute;
-  bottom: 40px;
-  right: 40px;
+/* 会议记录样式 */
+.meeting-records-container {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 10px;
 }
 
-.add-schedule-btn {
-  width: 60px;
-  height: 60px;
-  box-shadow: 0 4px 16px rgba(91, 124, 250, 0.3);
+.record-section {
+  margin-bottom: 24px;
 }
 
-.add-schedule-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 20px rgba(91, 124, 250, 0.4);
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.record-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #5b7cfa;
+  transition: all 0.3s ease;
+}
+
+.record-item:hover {
+  background: #e9ecef;
+}
+
+.record-time {
+  min-width: 100px;
+  margin-right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.record-time .date {
+  font-size: 14px;
+  font-weight: 600;
+  color: #5b7cfa;
+  margin-bottom: 4px;
+}
+
+.record-time .time-duration {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.record-info {
+  flex: 1;
+}
+
+.record-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 4px;
+}
+
+.record-details {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.record-id {
+  font-weight: 600;
+  color: #5b7cfa;
+}
+
+.record-room {
+  padding: 2px 6px;
+  background: #e9ecef;
+  border-radius: 4px;
+}
+
+.record-actions {
+  min-width: 80px;
+}
+
+.empty-records {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6c757d;
+}
+
+.empty-records .el-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #adb5bd;
+}
+
+.empty-records p {
+  margin: 0;
+  font-size: 14px;
 }
 
 /* 响应式设计 */
@@ -1093,15 +1428,14 @@ onMounted(() => {
     min-height: 120px;
   }
 
-  .add-button-wrapper {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-  }
-
-  .meeting-details {
+  .meeting-details,
+  .record-details {
     flex-direction: column;
     gap: 4px;
+  }
+
+  .record-time {
+    min-width: 80px;
   }
 }
 
@@ -1133,26 +1467,31 @@ onMounted(() => {
     font-size: 16px;
   }
 
-  .schedule-item {
+  .schedule-item,
+  .record-item {
     padding: 12px;
   }
 }
 
 /* 滚动条样式 */
-.schedule-list::-webkit-scrollbar {
+.schedule-list::-webkit-scrollbar,
+.meeting-records-container::-webkit-scrollbar {
   width: 4px;
 }
 
-.schedule-list::-webkit-scrollbar-track {
+.schedule-list::-webkit-scrollbar-track,
+.meeting-records-container::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.schedule-list::-webkit-scrollbar-thumb {
+.schedule-list::-webkit-scrollbar-thumb,
+.meeting-records-container::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 2px;
 }
 
-.schedule-list::-webkit-scrollbar-thumb:hover {
+.schedule-list::-webkit-scrollbar-thumb:hover,
+.meeting-records-container::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
 

@@ -47,3 +47,24 @@ export interface PageResponse<T = unknown> {
   page: number
   pageSize: number
 }
+
+// 新增会议室相关类型（与后端 OpenAPI 对齐）
+export interface MeetingRoom {
+  id: number
+  name: string
+  manager?: User
+  volume?: number
+  description?: string
+  locateURL?: string
+  createAt?: string
+  updateAt?: string
+  isDeleted?: boolean
+}
+
+export interface MeetingRoomRequest {
+  name?: string
+  manager_id?: number
+  volume?: number
+  description?: string
+  locateURL?: string
+}

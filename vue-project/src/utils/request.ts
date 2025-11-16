@@ -42,23 +42,44 @@ export const request = {
       }
     }).then(res => res.data as BaseResponse<T>),
 
-  post: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<BaseResponse<T>> =>
-    service.post(url, data, {
-      ...config,
-      headers: {
-        'Content-Type': 'application/json',
-        ...config?.headers
-      }
-    }).then(res => res.data as BaseResponse<T>),
+  post: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<BaseResponse<T>> => {
+    const headers = {
+      ...(config?.headers || {})
+    } as Record<string, unknown>
 
-  put: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<BaseResponse<T>> =>
-    service.put(url, data, {
-      ...config,
-      headers: {
-        'Content-Type': 'application/json',
-        ...config?.headers
+    // 如果没有显式指定 Content-Type，且 data 不是 FormData，则默认 application/json
+    if (!headers['Content-Type']) {
+      if (data instanceof FormData) {
+        // 让 axios 自动设置 multipart/form-data boundary
+      } else {
+        headers['Content-Type'] = 'application/json'
       }
-    }).then(res => res.data as BaseResponse<T>),
+    }
+
+    return service.post(url, data, {
+      ...config,
+      headers
+    }).then(res => res.data as BaseResponse<T>)
+  },
+
+  put: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<BaseResponse<T>> => {
+    const headers = {
+      ...(config?.headers || {})
+    } as Record<string, unknown>
+
+    if (!headers['Content-Type']) {
+      if (data instanceof FormData) {
+        // allow axios to set boundary
+      } else {
+        headers['Content-Type'] = 'application/json'
+      }
+    }
+
+    return service.put(url, data, {
+      ...config,
+      headers
+    }).then(res => res.data as BaseResponse<T>)
+  },
 
   delete: <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<BaseResponse<T>> =>
     service.delete(url, {
@@ -69,14 +90,24 @@ export const request = {
       }
     }).then(res => res.data as BaseResponse<T>),
 
-  patch: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<BaseResponse<T>> =>
-    service.patch(url, data, {
-      ...config,
-      headers: {
-        'Content-Type': 'application/json',
-        ...config?.headers
+  patch: <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<BaseResponse<T>> => {
+    const headers = {
+      ...(config?.headers || {})
+    } as Record<string, unknown>
+
+    if (!headers['Content-Type']) {
+      if (data instanceof FormData) {
+        // allow axios to set boundary
+      } else {
+        headers['Content-Type'] = 'application/json'
       }
+    }
+
+    return service.patch(url, data, {
+      ...config,
+      headers
     }).then(res => res.data as BaseResponse<T>)
+  }
 }
 
 export default service

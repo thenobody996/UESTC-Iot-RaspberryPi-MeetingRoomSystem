@@ -9,8 +9,49 @@ const defaultAvatar = '/favicon.ico'
 const avatarSrc = ref<string>(defaultAvatar)
 const displayName = ref<string>('')
 
+const backendPort = 8088 // 如果后端端口不是 8088，请修改
+const backendOrigin = `${window.location.protocol}//${window.location.hostname}:${backendPort}`
+
 const go = (path: string) => {
   router.push(path)
+}
+
+const resolveAvatarUrl = (avatar?: string | null) => {
+  if (!avatar) return defaultAvatar
+  // 如果已经是数据URL或以 http/https 开头，直接返回
+  if (avatar.startsWith('data:') || avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar
+  // 如果后端返回的是 /profile/xxxxxxxx，那么在开发环境通过 vite 代理转发到后端，使用 /api/profile/xxx
+  if (avatar.startsWith('/profile/')) {
+    // 使用 Vite 的代理：将请求走到前端 dev server 的 /api 前缀，避免跨域和直接后端访问导致的弹窗
+    return `/api${avatar}`
+  }
+  return avatar
+}
+
+// preload 图像，成功后 resolve，否则 reject
+const preloadImage = (url: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const img = new Image()
+      // 不设置 crossOrigin，避免引起 CORS 要求；仅用于显示
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('image load error'))
+      img.src = url
+    } catch (e) {
+      reject(e)
+    }
+  })
+}
+
+const safeSetAvatar = async (avatar?: string | null) => {
+  const url = resolveAvatarUrl(avatar)
+  try {
+    await preloadImage(url)
+    avatarSrc.value = url
+  } catch (e) {
+    console.warn('Navbar: avatar failed to load, using default', e)
+    avatarSrc.value = defaultAvatar
+  }
 }
 
 const loadFromSession = () => {
@@ -18,8 +59,9 @@ const loadFromSession = () => {
     const raw = sessionStorage.getItem('userProfile') || sessionStorage.getItem('userInfo')
     if (raw) {
       const parsed = JSON.parse(raw)
-      avatarSrc.value = parsed.avatar || defaultAvatar
-      displayName.value = parsed.nickname || parsed.username || ''
+      void safeSetAvatar(parsed.avatar)
+      // prefer userName, then nickname/username/account
+      displayName.value = parsed.userName || parsed.nickname || parsed.username || parsed.account || ''
     } else {
       avatarSrc.value = defaultAvatar
       displayName.value = ''
@@ -41,8 +83,8 @@ const onUserProfileUpdated = (event: Event) => {
       displayName.value = ''
       return
     }
-    avatarSrc.value = detail.avatar || defaultAvatar
-    displayName.value = detail.nickname || detail.username || ''
+    void safeSetAvatar(detail.avatar)
+    displayName.value = detail.userName || detail.nickname || detail.username || detail.account || ''
   } catch (e) {
     console.warn('Navbar: userProfileUpdated 事件处理失败', e)
   }
@@ -53,8 +95,8 @@ const onStorage = (e: StorageEvent) => {
     if (e.newValue) {
       try {
         const parsed = JSON.parse(e.newValue)
-        avatarSrc.value = parsed.avatar || defaultAvatar
-        displayName.value = parsed.nickname || parsed.username || ''
+        void safeSetAvatar(parsed.avatar)
+        displayName.value = parsed.userName || parsed.nickname || parsed.username || parsed.account || ''
       } catch (err) {
         console.warn('Navbar: storage 事件解析失败', err)
       }
@@ -63,6 +105,12 @@ const onStorage = (e: StorageEvent) => {
       displayName.value = ''
     }
   }
+}
+
+const onAvatarError = (ev?: Event) => {
+  // fallback if somehow <img> error triggers
+  console.warn('Navbar: avatar load error', ev)
+  avatarSrc.value = defaultAvatar
 }
 
 onMounted(() => {
@@ -80,7 +128,7 @@ onUnmounted(() => {
 <template>
   <nav class="sidebar" aria-label="主侧边导航">
     <div class="avatar-wrapper" @click.prevent="() => go('/user')" role="button" tabindex="0" aria-label="个人信息">
-      <img class="avatar" :src="avatarSrc" alt="avatar" />
+      <img class="avatar" :src="avatarSrc" alt="avatar" @error="onAvatarError" />
       <div class="avatar-name" v-if="displayName">{{ displayName }}</div>
     </div>
 
