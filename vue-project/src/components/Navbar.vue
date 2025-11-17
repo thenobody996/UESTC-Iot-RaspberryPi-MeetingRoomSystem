@@ -10,22 +10,58 @@ const avatarSrc = ref<string>(defaultAvatar)
 const displayName = ref<string>('')
 
 const backendPort = 8088 // 如果后端端口不是 8088，请修改
-const backendOrigin = `${window.location.protocol}//${window.location.hostname}:${backendPort}`
 
 const go = (path: string) => {
   router.push(path)
 }
 
-const resolveAvatarUrl = (avatar?: string | null) => {
-  if (!avatar) return defaultAvatar
-  // 如果已经是数据URL或以 http/https 开头，直接返回
-  if (avatar.startsWith('data:') || avatar.startsWith('http://') || avatar.startsWith('https://')) return avatar
-  // 如果后端返回的是 /profile/xxxxxxxx，那么在开发环境通过 vite 代理转发到后端，使用 /api/profile/xxx
-  if (avatar.startsWith('/profile/')) {
-    // 使用 Vite 的代理：将请求走到前端 dev server 的 /api 前缀，避免跨域和直接后端访问导致的弹窗
-    return `/api${avatar}`
+const isDataOrRemote = (avatar?: string | null) => {
+  if (!avatar) return false
+  return avatar.startsWith('data:') || avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('blob:')
+}
+
+const variantsFor = (avatar?: string | null) => {
+  // produce candidate URLs to try loading, in order of preference
+  if (!avatar) return [defaultAvatar]
+  if (isDataOrRemote(avatar)) return [avatar]
+
+  const candidates: string[] = []
+  // strip query string for base
+  const base = avatar.split('?')[0]
+
+  // if backend path like /profile/xxx
+  if (base.startsWith('/profile/')) {
+    // try raw backend path first. Do NOT attempt /api prefix for static profile files (avoids 405)
+    candidates.push(base)
+  } else if (base.startsWith('/api/profile/')) {
+    // input is proxied form '/api/profile/...'. Prefer the raw backend path '/profile/...' (keep query)
+    const raw = avatar.replace(/^\/api/, '')
+    candidates.push(raw)
+    candidates.push(raw.split('?')[0])
+    // as last resort include the original proxied avatar (may be used in prod setups)
+    candidates.push(avatar)
+  } else if (base.startsWith('/api/')) {
+    // generic api path: try as-is then raw
+    candidates.push(avatar)
+    candidates.push(base)
+    candidates.push(base.replace(/^\/api/, ''))
+  } else if (base.startsWith('/')) {
+    // other absolute path
+    candidates.push(avatar)
+    candidates.push(base)
+    candidates.push(`/api${base}`)
+  } else {
+    // relative or unknown - try as given and prepend /api/
+    candidates.push(avatar)
+    candidates.push(`/api/${avatar}`)
+    candidates.push(`/${avatar}`)
   }
-  return avatar
+
+  // also include original avatar with query if provided (cache-busting)
+  if (avatar.includes('?') && !candidates.includes(avatar)) candidates.unshift(avatar)
+
+  // dedupe while preserving order
+  return Array.from(new Set(candidates))
 }
 
 // preload 图像，成功后 resolve，否则 reject
@@ -44,14 +80,39 @@ const preloadImage = (url: string): Promise<void> => {
 }
 
 const safeSetAvatar = async (avatar?: string | null) => {
-  const url = resolveAvatarUrl(avatar)
-  try {
-    await preloadImage(url)
-    avatarSrc.value = url
-  } catch (e) {
-    console.warn('Navbar: avatar failed to load, using default', e)
+  if (!avatar) {
     avatarSrc.value = defaultAvatar
+    return
   }
+
+  if (isDataOrRemote(avatar)) {
+    try {
+      await preloadImage(avatar)
+      avatarSrc.value = avatar
+      return
+    } catch {
+      console.warn('Navbar: data/remote avatar failed to load, falling back')
+      avatarSrc.value = defaultAvatar
+      return
+    }
+  }
+
+  const candidates = variantsFor(avatar)
+  for (const c of candidates) {
+    try {
+      // try to load candidate
+      const tryUrl = c
+      // eslint-disable-next-line no-await-in-loop
+      await preloadImage(tryUrl)
+      avatarSrc.value = tryUrl
+      return
+    } catch {
+      // continue to next candidate
+    }
+  }
+
+  // all attempts failed, fallback
+  avatarSrc.value = defaultAvatar
 }
 
 const loadFromSession = () => {
@@ -85,8 +146,8 @@ const onUserProfileUpdated = (event: Event) => {
     }
     void safeSetAvatar(detail.avatar)
     displayName.value = detail.userName || detail.nickname || detail.username || detail.account || ''
-  } catch (e) {
-    console.warn('Navbar: userProfileUpdated 事件处理失败', e)
+  } catch (err) {
+    console.warn('Navbar: userProfileUpdated 事件处理失败', err)
   }
 }
 
@@ -127,13 +188,13 @@ onUnmounted(() => {
 
 <template>
   <nav class="sidebar" aria-label="主侧边导航">
-    <div class="avatar-wrapper" @click.prevent="() => go('/user')" role="button" tabindex="0" aria-label="个人信息">
+    <div class="avatar-wrapper" @click.prevent="go('/user')" role="button" tabindex="0" aria-label="个人信息">
       <img class="avatar" :src="avatarSrc" alt="avatar" @error="onAvatarError" />
       <div class="avatar-name" v-if="displayName">{{ displayName }}</div>
     </div>
 
     <ul class="nav-list">
-      <li class="nav-item" @click.prevent="() => go('/meeting')" role="button" tabindex="0" aria-label="会议">会议</li>
+      <li class="nav-item" @click.prevent="go('/meeting')" role="button" tabindex="0" aria-label="会议">会议</li>
       <!-- 未来导航项占位 -->
       <li class="nav-item placeholder">更多</li>
     </ul>

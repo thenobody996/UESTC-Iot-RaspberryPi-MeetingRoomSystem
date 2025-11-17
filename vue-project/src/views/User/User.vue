@@ -111,7 +111,7 @@ export default defineComponent({
     // 新增：上传进度相关状态
     const uploadProgress = ref<number>(0)
     const uploading = ref<boolean>(false)
-    // store server-side avatar path temporarily (avoid using `any` on function)
+    // store server-side avatar path
     const serverAvatarRef = ref<string>('')
 
     // 加载用户资料
@@ -127,6 +127,10 @@ export default defineComponent({
 
         const userInfo = JSON.parse(userInfoRaw)
 
+        // 尽量从多个位置获取 id（后端返回字段可能命名不同）
+        currentProfileId.value = userInfo.id || userInfo.userId || 0
+        console.debug('loadProfile: userInfo', userInfo, '=> profileId', currentProfileId.value)
+
         // 设置基本信息
         formData.id = userInfo.id || 0
         formData.account = userInfo.account || ''
@@ -138,28 +142,42 @@ export default defineComponent({
           formData.userName = parsed.userName || userInfo.account || ''
           formData.email = parsed.email || ''
           formData.description = parsed.description || ''
-          // Normalize avatar: if backend stored '/profile/xxx', present it via the frontend proxy '/api/profile/xxx'
+
+          // prefer client-facing avatar if present (may be proxied /api/profile/... or data: URL)
           let clientAvatar = parsed.avatar || ''
-          if (clientAvatar && clientAvatar.startsWith('/profile/')) {
-            clientAvatar = `/api${clientAvatar}`
+          // normalize '/api/profile/...' -> '/profile/...' to avoid hitting API controller for GET
+          if (clientAvatar && clientAvatar.startsWith('/api/profile/')) {
+            clientAvatar = clientAvatar.replace(/^\/api/, '')
           }
-          formData.avatar = clientAvatar
+           // Keep backend path as-is (backend serves /profile/**); do NOT prefix with /api
+           if (clientAvatar && clientAvatar.startsWith('/profile/')) {
+             // keep as /profile/xxx
+           }
+           formData.avatar = clientAvatar
           avatarUrl.value = clientAvatar || ''
-          currentProfileId.value = parsed.id || 0
+
+          // prefer id from parsed profile if available
+          currentProfileId.value = parsed.id || currentProfileId.value || 0
         } else {
           // 使用用户信息初始化
-          formData.userName = userInfo.userName || userInfo.account || ''
+          formData.userName = userInfo.userName || userInfo.username || userInfo.account || ''
           formData.email = userInfo.email || ''
           formData.description = userInfo.description || ''
           // normalize userInfo.avatar as well
           let clientAvatar = userInfo.avatar || ''
-          if (clientAvatar && clientAvatar.startsWith('/profile/')) {
-            clientAvatar = `/api${clientAvatar}`
+          if (clientAvatar && clientAvatar.startsWith('/api/profile/')) {
+            clientAvatar = clientAvatar.replace(/^\/api/, '')
           }
-          formData.avatar = clientAvatar
-          avatarUrl.value = clientAvatar || ''
-          currentProfileId.value = userInfo.id || 0
+           // keep as /profile/xxx if backend path
+           if (clientAvatar && clientAvatar.startsWith('/profile/')) {
+             // keep as-is
+           }
+           formData.avatar = clientAvatar
+           avatarUrl.value = clientAvatar || ''
+           currentProfileId.value = currentProfileId.value || userInfo.id || 0
         }
+
+        console.debug('Initialized formData, avatarUrl=', avatarUrl.value, 'currentProfileId=', currentProfileId.value)
       } catch (e) {
         console.warn('加载用户信息失败', e)
         ElMessage.error('加载用户信息失败')
@@ -186,7 +204,17 @@ export default defineComponent({
           const img = new Image()
           img.onload = () => resolve()
           img.onerror = () => reject(new Error('image load error'))
-          img.src = url
+          // Normalize URL: if someone passed '/api/profile/...' convert to '/profile/...' so
+          // the browser GET goes to the static file handler instead of the API controller
+          let normalizedUrl = url
+          try {
+            if (normalizedUrl.startsWith('/api/profile/')) {
+              normalizedUrl = normalizedUrl.replace(/^\/api/, '')
+            }
+          } catch (e) {
+            // ignore
+          }
+          img.src = normalizedUrl
         } catch (e) {
           reject(e)
         }
@@ -261,6 +289,7 @@ export default defineComponent({
             return false
           }
           // 预览使用压缩后的 base64
+          // Reduce preview size by using the compressed dataUrl
           avatarUrl.value = compressed
           formData.avatar = compressed
           // 将压缩后的 dataURL 转为 File，存储以便后续上传
@@ -271,7 +300,7 @@ export default defineComponent({
             selectedFile.value = file
           }
 
-          // 立即派发事件，侧边栏���以实时显示预览头像
+          // 立即派发事件，侧边栏可以实时显示预览头像
           window.dispatchEvent(new CustomEvent('userProfileUpdated', {
             detail: {
               avatar: avatarUrl.value,
@@ -291,6 +320,7 @@ export default defineComponent({
 
       try {
         const dataUrl = await fileToBase64(file)
+        // reduce preview size by showing a scaled-down thumbnail (data URL) if desired
         avatarUrl.value = dataUrl
         formData.avatar = dataUrl
         // 保存原始文件以便上传
@@ -303,7 +333,7 @@ export default defineComponent({
             account: formData.account
           }
         }))
-        ElMessage.success('头像已选择（并预览）。请点击保存以最终保存配置。')
+        ElMessage.success('头像已选择（并预览）。请点击保存以最��保存配置。')
       } catch (e) {
         console.error(e)
         ElMessage.error('读取图片失败')
@@ -329,17 +359,26 @@ export default defineComponent({
           try {
             uploading.value = true
             uploadProgress.value = 0
+            console.debug('Uploading avatar file...', selectedFile.value)
             const uploadRes = await profileAPI.uploadAvatar(selectedFile.value, (p) => {
               uploadProgress.value = p
             })
-            if (uploadRes && uploadRes.code === 200) {
-              // uploadRes.data is the server-side path, e.g. "/profile/xxx.jpg"
+            console.debug('uploadAvatar response:', uploadRes)
+            if (uploadRes && uploadRes.code === 20000) {
               const serverAvatar = uploadRes.data || ''
-              // client-facing avatar should go through the front-end proxy to avoid direct backend access
-              const clientAvatar = serverAvatar.startsWith('/profile/') ? `/api${serverAvatar}` : serverAvatar
-              // keep formData.avatar as client-facing for UI; but remember serverAvatar for payload
-              // Verify that the server actually serves the image at the proxied client URL
+              serverAvatarRef.value = serverAvatar
+
+              // client-facing avatar: use backend static path '/profile/...' (dev proxy maps '/profile')
+              let clientAvatar = serverAvatar
+              // normalize '/api/profile/...' -> '/profile/...' to avoid hitting API controller for GET
+              if (clientAvatar && clientAvatar.startsWith('/api/profile/')) {
+                clientAvatar = clientAvatar.replace(/^\/api/, '')
+              }
+              // append cache-busting timestamp so refresh will load the new image
+              clientAvatar = `${clientAvatar}?t=${Date.now()}`
+
               try {
+                // ensure preloadImage uses normalized URL internally
                 await preloadImage(clientAvatar)
               } catch (e) {
                 // server did not save or cannot serve the image yet
@@ -353,10 +392,7 @@ export default defineComponent({
 
               formData.avatar = clientAvatar
               avatarUrl.value = clientAvatar
-               // store serverAvatar temporarily for later when constructing payload
-               ;(saveProfile as any)._serverAvatar = serverAvatar
-                // 清除选中文件，避免重复上传
-                selectedFile.value = null
+              selectedFile.value = null
             } else {
               ElMessage.error(uploadRes.message || '头像上传失败')
               uploading.value = false
@@ -376,14 +412,12 @@ export default defineComponent({
          }
 
          // Determine server-side avatar to send in payload.
-         // If we just uploaded, use the server path returned by uploadAvatar (stored on the function),
-         // otherwise, try to convert client-side proxied path back to server path if needed.
          let serverAvatarToSend = serverAvatarRef.value || ''
          if (!serverAvatarToSend) {
-           if (formData.avatar && formData.avatar.startsWith('/api/profile/')) {
-             serverAvatarToSend = formData.avatar.replace(/^\/api/, '')
-           } else {
-             serverAvatarToSend = formData.avatar // could be '/profile/..' or data URL or external URL
+           if (formData.avatar && (formData.avatar.startsWith('/api/profile/') || formData.avatar.startsWith('/profile/'))) {
+             serverAvatarToSend = formData.avatar.replace(/^\/api/, '').split('?')[0]
+           } else if (formData.avatar) {
+             serverAvatarToSend = formData.avatar.split('?')[0]
            }
          }
 
@@ -395,35 +429,58 @@ export default defineComponent({
            isDeleted: false
          }
 
-         const response = await profileAPI.updateProfile(currentProfileId.value, profileData)
+         console.debug('Sending updateProfile payload:', currentProfileId.value, profileData)
 
-         if (response && response.code === 200) {
+         const response = await profileAPI.updateProfile(currentProfileId.value, profileData)
+         console.debug('updateProfile response:', response)
+
+         if (response && response.code === 20000) {
            uploadProgress.value = 0
-           // 更新本地存储
-           // For UI persistence, prefer client-facing avatar (proxied) so Navbar requests go through /api proxy
+
+           // Use server-returned profile if available to ensure we store the authoritative id/path
+           const returnedProfile = (response as any).data || null
+           let savedId = currentProfileId.value
+           if (returnedProfile && (returnedProfile.id || returnedProfile.avatar)) {
+             savedId = returnedProfile.id || savedId
+           }
+
+           // Ensure we persist a client-facing avatar (proxied) for UI use
+           let clientFacing = formData.avatar || ''
+           if (!clientFacing && returnedProfile && returnedProfile.avatar) {
+             // keep returnedProfile.avatar as backend path (/profile/...), don't force /api prefix
+             clientFacing = returnedProfile.avatar
+           }
+           // normalize '/api/profile/...' -> '/profile/...' to avoid hitting API controller for GET
+           if (clientFacing && clientFacing.startsWith('/api/profile/')) {
+             clientFacing = clientFacing.replace(/^\/api/, '')
+           }
+           if (clientFacing && !clientFacing.includes('?')) clientFacing = `${clientFacing}?t=${Date.now()}`
+
            const toSave = {
-             id: currentProfileId.value,
+             id: savedId,
              account: formData.account,
              userName: formData.userName,
              description: formData.description,
              email: formData.email,
-             avatar: formData.avatar
+             avatar: clientFacing
            }
-           sessionStorage.setItem('userProfile', JSON.stringify(toSave))
 
-           // 同时��新 userInfo
-           const userInfo = {
-             id: currentProfileId.value,
-             account: formData.account,
-             userName: formData.userName,
-             email: formData.email,
-             avatar: formData.avatar
+           try {
+             sessionStorage.setItem('userProfile', JSON.stringify(toSave))
+
+             const userInfo = {
+               id: savedId,
+               account: formData.account,
+               userName: formData.userName,
+               email: formData.email,
+               avatar: clientFacing
+             }
+             sessionStorage.setItem('userInfo', JSON.stringify(userInfo))
+           } catch (e) {
+             console.warn('写入 sessionStorage 失败', e)
            }
-           sessionStorage.setItem('userInfo', JSON.stringify(userInfo))
 
-           // Dispatch an event so the Navbar (same tab) updates immediately with the new avatar
            window.dispatchEvent(new CustomEvent('userProfileUpdated', { detail: toSave }))
-           // Also dispatch legacy userInfoUpdated event in case other parts listen to it
            window.dispatchEvent(new Event('userInfoUpdated'))
            ElMessage.success('个人资料更新成功')
          } else {
@@ -502,8 +559,8 @@ export default defineComponent({
 
 .avatar-preview {
   /* fixed preview box: 200x200, rounded corners */
-  width: 200px;
-  height: 200px;
+  width: 88px;
+  height: 88px;
   border-radius: 8px;
   overflow: hidden;
   position: relative;
