@@ -45,8 +45,9 @@ public class MeetingRoom {
 
     @Getter
     @Setter
-    @Column(name = "locateURL")
-    private String locateURL;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "device_id",referencedColumnName = "id")
+    private Device device;
 
     @Getter
     @Column(name = "create_at" , updatable = false)

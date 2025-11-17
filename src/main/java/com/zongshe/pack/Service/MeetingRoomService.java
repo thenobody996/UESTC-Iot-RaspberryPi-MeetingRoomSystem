@@ -50,7 +50,7 @@ public class MeetingRoomService {
         meetingRoom.setManager(userService.getUserById(meetingRoomRequest.getManager_id()));
         meetingRoom.setVolume(meetingRoomRequest.getVolume());
         meetingRoom.setDescription(meetingRoomRequest.getDescription());
-        meetingRoom.setLocateURL(meetingRoomRequest.getLocateURL());
+        //TODO:device逻辑
         meetingRoom.setUpdateAt(LocalDateTime.now());
         meetingRoom.setIsDeleted(false);
         return meetingRoomRepository.save(meetingRoom);
