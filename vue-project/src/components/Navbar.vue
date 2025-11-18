@@ -8,8 +8,7 @@ const router = useRouter()
 const defaultAvatar = '/favicon.ico'
 const avatarSrc = ref<string>(defaultAvatar)
 const displayName = ref<string>('')
-
-const backendPort = 8088 // 如果后端端口不是 8088，请修改
+const isAdmin = ref<boolean>(false)
 
 const go = (path: string) => {
   router.push(path)
@@ -123,14 +122,19 @@ const loadFromSession = () => {
       void safeSetAvatar(parsed.avatar)
       // prefer userName, then nickname/username/account
       displayName.value = parsed.userName || parsed.nickname || parsed.username || parsed.account || ''
+      // determine admin role from either profile or userInfo
+      const role = (parsed.role || parsed.authority || parsed.user?.role || '')
+      isAdmin.value = role === 'admin'
     } else {
       avatarSrc.value = defaultAvatar
       displayName.value = ''
+      isAdmin.value = false
     }
   } catch (e) {
     console.warn('Navbar: 读取 sessionStorage 失败', e)
     avatarSrc.value = defaultAvatar
     displayName.value = ''
+    isAdmin.value = false
   }
 }
 
@@ -142,10 +146,13 @@ const onUserProfileUpdated = (event: Event) => {
     if (!detail) {
       avatarSrc.value = defaultAvatar
       displayName.value = ''
+      isAdmin.value = false
       return
     }
     void safeSetAvatar(detail.avatar)
     displayName.value = detail.userName || detail.nickname || detail.username || detail.account || ''
+    // detail may include role
+    isAdmin.value = (detail.role === 'admin')
   } catch (err) {
     console.warn('Navbar: userProfileUpdated 事件处理失败', err)
   }
@@ -158,12 +165,15 @@ const onStorage = (e: StorageEvent) => {
         const parsed = JSON.parse(e.newValue)
         void safeSetAvatar(parsed.avatar)
         displayName.value = parsed.userName || parsed.nickname || parsed.username || parsed.account || ''
+        const role = (parsed.role || parsed.authority || parsed.user?.role || '')
+        isAdmin.value = role === 'admin'
       } catch (err) {
         console.warn('Navbar: storage 事件解析失败', err)
       }
     } else {
       avatarSrc.value = defaultAvatar
       displayName.value = ''
+      isAdmin.value = false
     }
   }
 }
@@ -195,6 +205,9 @@ onUnmounted(() => {
 
     <ul class="nav-list">
       <li class="nav-item" @click.prevent="go('/meeting')" role="button" tabindex="0" aria-label="会议">会议</li>
+      <!-- 管理入口，仅管理员可见 -->
+      <li v-if="isAdmin" class="nav-item" @click.prevent="go('/admin/meetingroom')" role="button" tabindex="0">会议室管理</li>
+      <li v-if="isAdmin" class="nav-item" @click.prevent="go('/admin/user')" role="button" tabindex="0">用户管理</li>
       <!-- 未来导航项占位 -->
       <li class="nav-item placeholder">更多</li>
     </ul>

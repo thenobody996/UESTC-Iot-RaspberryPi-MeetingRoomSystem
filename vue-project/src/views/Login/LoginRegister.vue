@@ -176,9 +176,9 @@ export default defineComponent({
 
     // 虚拟账号列表
     const demoAccounts = [
-      { account: 'demo', password: '123456', name: '演示用户', id: 1 },
-      { account: 'test', password: '123456', name: '测试用户', id: 2 },
-      { account: 'admin', password: 'admin123', name: '管理员', id: 3 }
+      { account: 'demo', password: '123456', name: '演示用户', id: 1, role: 'user' },
+      { account: 'test', password: '123456', name: '测试用户', id: 2, role: 'user' },
+      { account: 'admin', password: 'admin123', name: '管理员', id: 3, role: 'admin' }
     ]
 
     // 登录表单验证规则
@@ -293,7 +293,9 @@ export default defineComponent({
           ElMessage.success('登录成功！')
           // 保存用户信息到 sessionStorage
           try {
-            sessionStorage.setItem('userInfo', JSON.stringify(response.data))
+            // ensure role is present for permission checks
+            const out = Object.assign({ role: 'user' }, response.data)
+            sessionStorage.setItem('userInfo', JSON.stringify(out))
             sessionStorage.setItem('token', 'demo-token-' + response.data.id)
             sessionStorage.setItem('isDemo', 'true') // 标记为演示模式
           } catch (e) {
@@ -313,7 +315,9 @@ export default defineComponent({
               ElMessage.success('登录成功！')
               // 保存用户信息到 sessionStorage
               try {
-                sessionStorage.setItem('userInfo', JSON.stringify(response.data))
+                // backend response should include role; if not, default to 'user'
+                const out = Object.assign({ role: 'user' }, response.data)
+                sessionStorage.setItem('userInfo', JSON.stringify(out))
                 sessionStorage.setItem('token', 'logged-in')
                 sessionStorage.setItem('isDemo', 'false')
               } catch (e) {
