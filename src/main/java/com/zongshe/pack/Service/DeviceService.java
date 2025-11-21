@@ -13,13 +13,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +37,15 @@ public class DeviceService {
     private final MeetingRoomRepository meetingRoomRepository;
 
     private static final SecureRandom RANDOM = new SecureRandom();
+
+    // WebSocket 会话和心跳管理（内存缓存）
+    private final ConcurrentHashMap<String, WebSocketSession> sessionsByDevice = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Instant> lastHeartbeat = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Object> latestSensorData = new ConcurrentHashMap<>();
+
+    // SimpMessagingTemplate 可选注入（如果启用了 STOMP broker）
+    @Autowired(required = false)
+    private SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public DeviceRegisterResponse register(DeviceRegisterRequest request) {
@@ -89,6 +103,9 @@ public class DeviceService {
         device.setStatus(Device.DeviceStatus.online);
         deviceRepository.save(device);
 
+        // 更新内存心跳
+        lastHeartbeat.put(device.getDeviceUuid(), device.getLastHeartbeat());
+
         return new DeviceHeartbeatResponse(
                 true,
                 device.getId(),
@@ -96,6 +113,77 @@ public class DeviceService {
                 DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                 3 // 建议 3 秒一拍，可按需调整
         );
+    }
+
+    // ---------------- WebSocket 会话管理方法 ----------------
+
+    public void registerSession(String deviceUuid, String secretKey, WebSocketSession session) {
+        // 简单鉴权：校验 DB 中 deviceUuid 和 secretKey
+        Optional<Device> dOpt = deviceRepository.findByDeviceUuidAndSecretKey(deviceUuid, secretKey);
+        if (dOpt.isEmpty()) {
+            try {
+                session.close();
+            } catch (Exception ignored) {}
+            return;
+        }
+        sessionsByDevice.put(deviceUuid, session);
+        lastHeartbeat.put(deviceUuid, Instant.now());
+
+        // 更新 DB 状态
+        Device d = dOpt.get();
+        d.setLastHeartbeat(Instant.now());
+        d.setStatus(Device.DeviceStatus.online);
+        deviceRepository.save(d);
+
+        System.out.println("Device WebSocket registered: " + deviceUuid);
+    }
+
+    public void unregisterSession(WebSocketSession session) {
+        sessionsByDevice.entrySet().removeIf(e -> e.getValue().equals(session));
+    }
+
+    public void updateHeartbeat(String deviceUuid) {
+        lastHeartbeat.put(deviceUuid, Instant.now());
+        Optional<Device> opt = deviceRepository.findByDeviceUuid(deviceUuid);
+        if (opt.isPresent()) {
+            Device device = opt.get();
+            device.setLastHeartbeat(Instant.now());
+            device.setStatus(Device.DeviceStatus.online);
+            deviceRepository.save(device);
+        }
+    }
+
+    // 服务端向设备下发“请上报传感器数据”请求
+    public boolean requestSensorOnce(String deviceUuid) {
+        WebSocketSession s = sessionsByDevice.get(deviceUuid);
+        if (s == null || !s.isOpen()) return false;
+        try {
+            String req = "{\"type\":\"requestSensor\"}";
+            s.sendMessage(new TextMessage(req));
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    // 设备上报后调用，将数据推到前端订阅 topic（如果 STOMP 可用）或记录到内存供 REST 查询
+    public void forwardSensorDataToFrontend(String deviceUuid, Object payload) {
+        // 保存最近一次数据
+        latestSensorData.put(deviceUuid, payload);
+
+        // 1) 如果有 STOMP messagingTemplate，则推送
+        if (messagingTemplate != null) {
+            String topic = "/topic/device/" + deviceUuid + "/sensor";
+            messagingTemplate.convertAndSend(topic, payload);
+        }
+
+        // 2) 打印日志以便调试
+        System.out.println("Received sensor data from " + deviceUuid + ": " + payload);
+    }
+
+    // REST 查询最近一次传感器数据（可在 Controller 中调用）
+    public Object getLatestSensorData(String deviceUuid) {
+        return latestSensorData.get(deviceUuid);
     }
 
     // 每 2 秒扫描一次，把超过 5 秒未心跳的设备置为 OFFLINE

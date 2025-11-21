@@ -57,5 +57,25 @@ public class DeviceController {
     public ResponseEntity<DeviceHeartbeatResponse> heartbeatByJson(@Valid @RequestBody DeviceHeartbeatRequest request) {
         return ResponseEntity.ok(deviceService.heartbeat(request));
     }
-}
 
+    // ---------------- 新增：触发设备上报与获取最新传感器数据 ----------------
+
+    @PostMapping(value = "/{deviceUuid}/request-sensor", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> requestSensor(@PathVariable String deviceUuid) {
+        boolean ok = deviceService.requestSensorOnce(deviceUuid);
+        if (ok) {
+            return ResponseEntity.ok().body("request_sent");
+        } else {
+            return ResponseEntity.status(503).body("device_offline_or_unavailable");
+        }
+    }
+
+    @GetMapping(value = "/{deviceUuid}/sensor-latest", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getLatestSensor(@PathVariable String deviceUuid) {
+        Object data = deviceService.getLatestSensorData(deviceUuid);
+        if (data == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(data);
+    }
+}
