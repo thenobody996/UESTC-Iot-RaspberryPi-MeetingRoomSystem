@@ -1,7 +1,7 @@
 package com.zongshe.pack.Controller;
 
 
-import com.zongshe.pack.Common.LoginRequest;
+import com.zongshe.pack.DTO.LoginRequest;
 import com.zongshe.pack.Common.Result;
 import com.zongshe.pack.Entity.Meeting;
 import com.zongshe.pack.Entity.User;

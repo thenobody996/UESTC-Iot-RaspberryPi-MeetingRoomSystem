@@ -31,7 +31,7 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=webserver-app
 
-ReadWritePaths=/var/webserver/log /opt/webserver /opt/webserver/backup
+ReadWritePaths=/var/webserver/log /opt/webserver /opt/webserver/backup /var/webserver/room /var/webserver/avatars /var/webserver/profile
 
 [Install]
 WantedBy=multi-user.target

@@ -1,0 +1,84 @@
+# yaml
+name: Server Initialization
+
+on:
+  workflow_dispatch:
+
+jobs:
+  init-server:
+    name: Initialize Server
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Initialize remote server (create user, dirs, install packages)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_SUDO }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+
+            echo "Updating apt and installing required packages..."
+            sudo apt-get update -y
+            # 安装 Java 17、nginx 及常用工具
+            sudo apt-get install -y openjdk-17-jdk nginx curl ca-certificates gnupg lsb-release
+
+            java -version || true
+            nginx -v || true
+
+            # 创建 system user webserver（无登录 shell）
+            if ! id -u webserver >/dev/null 2>&1; then
+              sudo useradd -r -s /usr/sbin/nologin -m webserver || true
+              echo "用户 webserver 已创建"
+            else
+              echo "用户 webserver 已存在"
+            fi
+
+            # 确保 webserver group 存在并把 webserver 加入 www-data（方便 nginx 读取静态文件）
+            if ! getent group webserver >/dev/null 2>&1; then
+              sudo groupadd -r webserver || true
+            fi
+            sudo usermod -a -G webserver,www-data webserver || true
+
+            # 创建后端与前端所需目录
+            sudo mkdir -p /opt/webserver /opt/webserver/backup
+            sudo mkdir -p /var/webserver/ui /var/webserver/log /var/webserver/room /var/webserver/avatars /var/webserver/profile /var/webserver/files /var/webserver/banners
+
+            # 设置属主与权限
+            # /opt/webserver 属于 webserver:webserver（应用文件）
+            sudo chown -R webserver:webserver /opt/webserver
+            sudo chmod -R 750 /opt/webserver
+
+            # /var/webserver 属于 webserver:www-data，组设置为 www-data 并打开组写权限，设置 SetGID（2775）
+            sudo chown -R webserver:www-data /var/webserver
+            sudo chmod -R 2775 /var/webserver
+            # 确保子目录权限合理
+            sudo find /var/webserver -type d -exec chmod 2775 {} \; || true
+            sudo find /var/webserver -type f -exec chmod 664 {} \; || true
+
+            # 创建 /etc/default/webserver 环境变量文件（供 systemd EnvironmentFile 引用）
+            sudo mkdir -p /etc/default/webserver
+            sudo tee /etc/default/webserver/webserver.env >/dev/null <<'ENV' JAVA_OPTS="-Xms256m -Xmx1024m" ENV
+            sudo chown root:root /etc/default/webserver/webserver.env
+            sudo chmod 644 /etc/default/webserver/webserver.env
+            
+            # 若需要为 nginx 提供专用静态目录（可选），确保属于 www-data
+            sudo mkdir -p /var/www/CDMGA-ui /var/www/backup
+            sudo chown -R www-data:www-data /var/www/CDMGA-ui /var/www/backup
+            sudo chmod -R 755 /var/www/CDMGA-ui /var/www/backup
+            
+            # 打印检查信息
+            echo "=== Directory & Permission Check ==="
+            ls -ld /opt/webserver || true
+            ls -ld /var/webserver || true
+            ls -ld /var/webserver/ui || true
+            echo "webserver user groups:"
+            id webserver || true
+            
+            echo "Initialization completed successfully."

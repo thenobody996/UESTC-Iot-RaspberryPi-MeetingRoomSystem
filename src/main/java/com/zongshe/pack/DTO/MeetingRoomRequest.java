@@ -1,4 +1,4 @@
-package com.zongshe.pack.Common;
+package com.zongshe.pack.DTO;
 
 import jakarta.persistence.Column;
 import lombok.Getter;

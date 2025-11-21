@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Getter
@@ -49,7 +50,7 @@ public class Device {
      * 最后心跳时间
      */
     @Column(name = "last_heartbeat")
-    private LocalDateTime lastHeartbeat;
+    private Instant lastHeartbeat;
 
     /**
      * 创建时间

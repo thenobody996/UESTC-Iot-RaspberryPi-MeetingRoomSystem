@@ -1,5 +1,7 @@
 package com.zongshe.pack.Controller;
 
+import com.zongshe.pack.DTO.DeviceHeartbeatRequest;
+import com.zongshe.pack.DTO.DeviceHeartbeatResponse;
 import com.zongshe.pack.DTO.DeviceRegisterRequest;
 import com.zongshe.pack.DTO.DeviceRegisterResponse;
 import com.zongshe.pack.Service.DeviceService;
@@ -11,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/devices")
+@RequestMapping("/devices")
 public class DeviceController {
 
     private final DeviceService deviceService;
@@ -36,6 +38,24 @@ public class DeviceController {
     public ResponseEntity<DeviceRegisterResponse> registerByJson(@Valid @RequestBody DeviceRegisterRequest request) {
         DeviceRegisterResponse resp = deviceService.register(request);
         return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping(
+            value = "/heartbeat",
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<DeviceHeartbeatResponse> heartbeatByForm(@Valid DeviceHeartbeatRequest request) {
+        return ResponseEntity.ok(deviceService.heartbeat(request));
+    }
+
+    @PostMapping(
+            value = "/heartbeat",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<DeviceHeartbeatResponse> heartbeatByJson(@Valid @RequestBody DeviceHeartbeatRequest request) {
+        return ResponseEntity.ok(deviceService.heartbeat(request));
     }
 }
 

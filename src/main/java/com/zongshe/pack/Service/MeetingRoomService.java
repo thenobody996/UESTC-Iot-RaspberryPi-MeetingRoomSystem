@@ -1,19 +1,13 @@
 package com.zongshe.pack.Service;
 
-import com.zongshe.pack.Common.MeetingRoomRequest;
+import com.zongshe.pack.DTO.MeetingRoomRequest;
 import com.zongshe.pack.Entity.MeetingRoom;
 import com.zongshe.pack.Repository.MeetingRoomRepository;
-import org.springframework.beans.BeanWrapper;
-import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.beans.PropertyDescriptor;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Service

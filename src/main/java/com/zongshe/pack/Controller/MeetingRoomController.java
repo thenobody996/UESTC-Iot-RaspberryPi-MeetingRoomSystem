@@ -1,8 +1,7 @@
 package com.zongshe.pack.Controller;
 
-import com.zongshe.pack.Common.MeetingRoomRequest;
+import com.zongshe.pack.DTO.MeetingRoomRequest;
 import com.zongshe.pack.Common.Result;
-import com.zongshe.pack.Entity.Meeting;
 import com.zongshe.pack.Entity.MeetingRoom;
 import com.zongshe.pack.Service.MeetingRoomService;
 import io.swagger.v3.oas.annotations.Operation;

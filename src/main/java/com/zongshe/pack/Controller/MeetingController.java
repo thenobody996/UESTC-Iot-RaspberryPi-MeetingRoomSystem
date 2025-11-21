@@ -1,6 +1,6 @@
 package com.zongshe.pack.Controller;
 
-import com.zongshe.pack.Common.MeetingRequest;
+import com.zongshe.pack.DTO.MeetingRequest;
 import com.zongshe.pack.Entity.Meeting;
 import com.zongshe.pack.Service.MeetingRoomService;
 import com.zongshe.pack.Service.MeetingService;
