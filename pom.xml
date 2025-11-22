@@ -101,6 +101,7 @@
     </dependencies>
 
     <build>
+        <finalName>zongshe-0.0.1-SNAPSHOT</finalName>
         <!--让Maven能够过滤替换配置文件中的占位符 -->
         <resources>
             <resource>
