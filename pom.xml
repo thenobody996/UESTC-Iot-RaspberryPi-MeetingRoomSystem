@@ -113,9 +113,7 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <mainClass>com.zongshe.pack.UestcIotRaspberryPiMeetingRoomSystemApplication</mainClass>
-                </configuration>
+                <!-- 移除 mainClass 配置，恢复为默认自动识别主类 -->
             </plugin>
             <plugin>
                 <groupId>org.codehaus.gmavenplus</groupId>
