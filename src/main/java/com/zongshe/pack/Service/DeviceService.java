@@ -58,7 +58,6 @@ public class DeviceService {
         if (deviceRepository.findByDeviceUuid(request.getDeviceUuid()).isPresent()) {
             return new DeviceRegisterResponse(null, null, null, false);
         }
-
         // 生成 secretKey
         String secretKey = generateSecretKey();
 
@@ -72,9 +71,15 @@ public class DeviceService {
 
         Device saved = deviceRepository.save(device);
 
+        // ===== 新增：将 saved 设备同步设置到对应的 MeetingRoom 并保存 =====
+        MeetingRoom room = roomOpt.get();
+        room.setDevice(saved); // 需要 MeetingRoom 中有 setDevice(Device) 方法
+        meetingRoomRepository.save(room);
+        // ============================================================
+
         return new DeviceRegisterResponse(
                 saved.getId(),
-                roomOpt.get().getId(),
+                room.getId(),
                 secretKey,
                 true
         );
