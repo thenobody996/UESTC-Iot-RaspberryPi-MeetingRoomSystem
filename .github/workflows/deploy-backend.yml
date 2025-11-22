@@ -63,18 +63,27 @@ jobs:
             sudo chown webserver:webserver /opt/webserver/zongshe-0.0.1-SNAPSHOT.jar
             sudo chmod 750 /opt/webserver/zongshe-0.0.1-SNAPSHOT.jar
 
-      - name: Upload nginx config and reload nginx
+      - name: Upload nginx config to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_SUDO }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: "script/zongshe_nginx.conf"
+          target: "/tmp/"
+          strip_components: 1
+
+      - name: Reload nginx with new config
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_SUDO }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          scp: true
-          local: 'script/zongshe_nginx.conf'
-          remote: '/tmp/'
           script: |
             set -e
+            ls -l /tmp/zongshe_nginx.conf || (echo "nginx conf not found in /tmp" && exit 1)
             sudo mkdir -p /etc/nginx/sites-available/zongshe
             sudo mv /tmp/zongshe_nginx.conf /etc/nginx/sites-available/zongshe/zongshe_nginx.conf
             sudo chown root:root /etc/nginx/sites-available/zongshe/zongshe_nginx.conf
@@ -82,18 +91,27 @@ jobs:
             sudo nginx -t
             sudo systemctl reload nginx
 
-      - name: Upload systemd unit and enable service
+      - name: Upload systemd unit to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_SUDO }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: "script/webserver.service"
+          target: "/tmp/"
+          strip_components: 1
+
+      - name: Enable and reload systemd service
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_SUDO }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          scp: true
-          local: 'script/webserver.service'
-          remote: '/tmp/'
           script: |
             set -e
+            ls -l /tmp/webserver.service || (echo "systemd unit not found in /tmp" && exit 1)
             sudo mv /tmp/webserver.service /etc/systemd/system/webserver.service
             sudo chown webserver:webserver /etc/systemd/system/webserver.service
             sudo chmod 644 /etc/systemd/system/webserver.service
