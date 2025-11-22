@@ -24,9 +24,17 @@ jobs:
 
       - name: Normalize jar name
         run: |
+          echo "=== List all jars in target/ ==="
+          ls -l target/
           JAR="$(ls target/*.jar | grep -v 'original' | head -n1)"
+          echo "Selected jar: $JAR"
           if [ -z "$JAR" ]; then echo "jar not found" >&2; exit 1; fi
           cp "$JAR" target/zongshe-0.0.1-SNAPSHOT.jar
+          echo "=== After cp, list target/ ==="
+          ls -l target/
+
+      - name: Check jar exists before upload
+        run: |
           ls -l target/zongshe-0.0.1-SNAPSHOT.jar
 
       - name: Pause webserver.service (stop)
