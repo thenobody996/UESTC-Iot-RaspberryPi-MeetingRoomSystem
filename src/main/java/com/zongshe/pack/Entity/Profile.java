@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name = "profile")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Profile {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,7 +29,6 @@ public class Profile {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private User user;
 
     @NotNull

@@ -1,6 +1,8 @@
 package com.zongshe.pack.Entity;
 
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -18,6 +20,7 @@ import java.util.Set;
 @Entity
 @Table(name = "user")
 @Schema(description = "用户实体，包含账号、密码等信息")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
     // Getters and Setters
     @Setter
@@ -72,6 +75,7 @@ public class User {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "meeting_id")
     )
+    @JsonIgnore
     private Set<Meeting> meetings = new HashSet<>();
 
     public void joinMeeting(Meeting meeting) {

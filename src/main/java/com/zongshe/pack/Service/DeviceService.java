@@ -139,7 +139,6 @@ public class DeviceService {
         d.setStatus(Device.DeviceStatus.online);
         deviceRepository.save(d);
 
-        System.out.println("Device WebSocket registered: " + deviceUuid);
     }
 
     public void unregisterSession(WebSocketSession session) {

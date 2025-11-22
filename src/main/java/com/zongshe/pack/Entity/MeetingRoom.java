@@ -14,6 +14,7 @@ import java.util.List;
 @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
 @Table(name = "meetingroom")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class MeetingRoom {
     @Setter
     @Getter
@@ -30,7 +31,6 @@ public class MeetingRoom {
     @Getter
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id",referencedColumnName = "id")
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private User manager;
 
     @Setter
@@ -61,7 +61,6 @@ public class MeetingRoom {
     private LocalDateTime updateAt;
 
     @OneToMany(mappedBy = "place", fetch = FetchType.LAZY)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "place"})
     private List<Meeting> meetings;
 
     public void AddMeeting(Meeting meeting){

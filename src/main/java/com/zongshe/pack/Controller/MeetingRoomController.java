@@ -1,5 +1,6 @@
 package com.zongshe.pack.Controller;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.zongshe.pack.DTO.MeetingRoomRequest;
 import com.zongshe.pack.Common.Result;
 import com.zongshe.pack.Entity.MeetingRoom;
@@ -19,6 +20,7 @@ import java.util.Map;
 @CrossOrigin("http://localhost:8089")
 @RestController
 @RequestMapping("/api/meetingroom")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class MeetingRoomController {
 
     @Autowired

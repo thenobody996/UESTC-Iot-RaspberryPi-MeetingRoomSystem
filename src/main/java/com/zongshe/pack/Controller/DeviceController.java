@@ -1,5 +1,6 @@
 package com.zongshe.pack.Controller;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.zongshe.pack.DTO.DeviceHeartbeatRequest;
 import com.zongshe.pack.DTO.DeviceHeartbeatResponse;
 import com.zongshe.pack.DTO.DeviceRegisterRequest;
@@ -24,6 +25,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Tag(name = "会议室传感器设备相关接口", description = "获取设备在线状态，获取传感器数据，触发设备上报等操作")
 @RestController
 @RequiredArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class DeviceController {
 
     private final DeviceService deviceService;

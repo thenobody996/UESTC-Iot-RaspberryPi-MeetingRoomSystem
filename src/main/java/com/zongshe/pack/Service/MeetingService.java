@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -112,6 +114,7 @@ public class MeetingService {
         }
     }
 
+
     public List<Meeting> searchMeetingsByTitle(String title) {
         return meetingRepository.findByTitleContainingAndIsDeletedFalse(title);
     }
@@ -134,5 +137,21 @@ public class MeetingService {
 
     public List<Meeting> searchOngoingMeetingsByPlace(MeetingRoom place) {
         return meetingRepository.findOngoingMeetingsByPlace(place);
+    }
+
+    // 获取会议成员分页列表
+    public List<User> getMeetingMembers(Integer meetingId, int pageNum, int pageSize) throws Exception {
+        Meeting meeting = meetingRepository.findByIdAndIsDeletedFalse(meetingId);
+        if (meeting == null) {
+            throw new Exception("未查找到对应会议数据");
+        }
+        List<User> members = new ArrayList<>(meeting.getMembers());
+        int total = members.size();
+        int fromIndex = Math.max(0, (pageNum - 1) * pageSize);
+        int toIndex = Math.min(fromIndex + pageSize, total);
+        if (fromIndex > toIndex) {
+            return Collections.emptyList();
+        }
+        return members.subList(fromIndex, toIndex);
     }
 }

@@ -3,6 +3,8 @@ package com.zongshe.pack.Repository;
 import com.zongshe.pack.Entity.Meeting;
 import com.zongshe.pack.Entity.MeetingRoom;
 import com.zongshe.pack.Entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,6 +25,7 @@ public interface MeetingRepository extends JpaRepository<Meeting, Integer> {
     List<Meeting> findByTitleContainingAndIsDeletedFalse(String title);
 
     List<Meeting> findByPlaceAndIsDeletedFalse(MeetingRoom place);
+
 
     @Query("SELECT m FROM Meeting m WHERE m.place = :place AND m.isDeleted = false AND m.startTime > CURRENT_TIMESTAMP")
     List<Meeting> findUpcomingMeetingsByPlaceAndIsDeletedFalse(@Param("place")MeetingRoom place);

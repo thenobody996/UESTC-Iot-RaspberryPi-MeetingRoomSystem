@@ -2,6 +2,8 @@ package com.zongshe.pack.Controller;
 
 import com.zongshe.pack.DTO.MeetingRequest;
 import com.zongshe.pack.Entity.Meeting;
+import com.zongshe.pack.Entity.MeetingRoom;
+import com.zongshe.pack.Entity.User;
 import com.zongshe.pack.Service.MeetingRoomService;
 import com.zongshe.pack.Service.MeetingService;
 import com.zongshe.pack.Service.UserService;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.lang.reflect.Method;
 
 @Tag(name = "会议相关接口", description = "会议的创建、查询、更新、删除等操作")
 @CrossOrigin("http://localhost:8089")
@@ -37,7 +41,7 @@ public class MeetingController {
      * @param size
      * @return
      */
-    @Operation(summary = "获取所有会议", description = "传入分页params{page,size},获取分页的会议列表")
+    @Operation(summary = "获取所有会议(不包含成员)", description = "传入分页params{page,size},获取分页的会议列表")
     @GetMapping("/allmeetings")
     public ResponseEntity<Object> GetAllMeetings(
             @RequestParam Integer page,
@@ -52,11 +56,14 @@ public class MeetingController {
         return ResponseEntity.ok().body(result);
     }
 
-    @Operation(summary = "根据id查询会议")
+
+
+    @Operation(summary = "根据id查询会议(不包含成员)")
     @GetMapping("/{id}")
     public ResponseEntity<Meeting> GetMeetingById(@PathVariable Integer id) {
         return ResponseEntity.ok().body(meetingService.getMeetingById(id));
     }
+
 
     @Operation(summary = "创建新会议")
     @PostMapping("/")
@@ -159,4 +166,23 @@ public class MeetingController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
+    @Operation(summary = "获取会议成员(分页)", description = "根据会议ID获取成员列表，参数 page(从0开始)，size")
+    @GetMapping("/{id}/members")
+    public ResponseEntity<Object> getMeetingMembers(
+            @PathVariable Integer id,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        try {
+            List<User> members = meetingService.getMeetingMembers(id, page, size);
+            int total = meetingService.getMeetingById(id).getMembers().size();
+            Map<String, Object> result = new HashMap<>();
+            result.put("list", members);
+            result.put("total", total);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
 }
