@@ -93,4 +93,14 @@ public class MeetingRoomController {
         MeetingRoom room = meetingRoomService.getMeetingRoomById(roomId);
         return ResponseEntity.ok().body(meetingRoomService.DeleteMeetingRoom(room));
     }
+
+    @GetMapping("/deviceuuid/{roomId}")
+    @Operation(summary = "获取会议室绑定设备的UUID", description = "根据会议室ID获取其绑定设备的UUID,如果没有绑定设备则返回null")
+    public ResponseEntity<String> getDeviceUuid(@PathVariable Integer roomId){
+        MeetingRoom room = meetingRoomService.getMeetingRoomById(roomId);
+        if(room.getDevice() != null) {
+            return ResponseEntity.ok().body(room.getDevice().getDeviceUuid());
+        }
+        return ResponseEntity.ok().body(null);
+    }
 }

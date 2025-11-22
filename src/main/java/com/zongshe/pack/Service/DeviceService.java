@@ -22,7 +22,6 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -184,6 +183,22 @@ public class DeviceService {
     // REST 查询最近一次传感器数据（可在 Controller 中调用）
     public Object getLatestSensorData(String deviceUuid) {
         return latestSensorData.get(deviceUuid);
+    }
+
+    /**
+     * 检查设备是否在线
+     * @param deviceUuid 设备的唯一标识符
+     * @return 如果设备在线返回 true，否则返回 false
+     */
+    public boolean isDeviceOnline(String deviceUuid) {
+        Instant lastSeen = lastHeartbeat.get(deviceUuid);
+        if (lastSeen == null) {
+            return false;
+        }
+
+        // 假设设备在最近 60 秒内发送过心跳则视为在线
+        Instant now = Instant.now();
+        return lastSeen.plusSeconds(60).isAfter(now);
     }
 
     // 每 2 秒扫描一次，把超过 5 秒未心跳的设备置为 OFFLINE
