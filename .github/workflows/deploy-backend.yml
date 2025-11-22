@@ -46,6 +46,7 @@ jobs:
           port: ${{ secrets.SSH_PORT || 22 }}
           source: "target/zongshe-0.0.1-SNAPSHOT.jar"
           target: "/tmp/"
+          strip_components: 1
 
       - name: Move jar and set permissions
         uses: appleboy/ssh-action@master
