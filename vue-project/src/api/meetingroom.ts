@@ -25,15 +25,21 @@ export const meetingRoomAPI = {
 
   // 按名称模糊查询（可选分页） -> 文档为 object（分页结果），包装在 BaseResponse.data
   searchRooms: (name: string, page?: number, size?: number): Promise<BaseResponse<object>> => {
+    const params: Record<string, number> = {}
+    if (typeof page === 'number') params.page = page
+    if (typeof size === 'number') params.size = size
     return request.get<object>(`/meetingroom/search/${encodeURIComponent(name)}`, {
-      params: { page, size }
+      params: Object.keys(params).length ? params : undefined
     })
   },
 
   // 获取所有会议室（分页） -> 文档为 object（分页结果），包装在 BaseResponse.data
   getAllRooms: (page?: number, size?: number): Promise<BaseResponse<object>> => {
-    return request.get<object>('/meetingroom/allrooms', {
-      params: { page, size }
+    const params: Record<string, number> = {}
+    if (typeof page === 'number') params.page = page
+    if (typeof size === 'number') params.size = size
+    return request.get<object>(`/meetingroom/search/%20`, {
+      params: Object.keys(params).length ? params : undefined
     })
   }
 }

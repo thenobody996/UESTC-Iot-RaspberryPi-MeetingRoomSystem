@@ -19,6 +19,35 @@ const isDataOrRemote = (avatar?: string | null) => {
   return avatar.startsWith('data:') || avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('blob:')
 }
 
+// Normalize avatar URLs produced by backend or proxies.
+// - If the backend returns a full URL that contains a "/api/profile/..." path, prefer the raw "/profile/..." path (no /api) which the backend serves as static files.
+// - If the avatar starts with /api/, drop the /api prefix.
+// - If it's an absolute URL without /api, keep it as-is.
+const sanitizeAvatar = (avatar?: string | null): string | null => {
+  if (!avatar) return null
+  try {
+    // If it's a full URL, use URL to extract pathname
+    if (/^https?:\/\//i.test(avatar)) {
+      const u = new URL(avatar)
+      // if path starts with /api/, strip only the leading "/api"
+      if (u.pathname.startsWith('/api/')) {
+        return u.pathname + (u.search || '')
+      }
+      // otherwise return the full URL (remote images)
+      return avatar
+    }
+
+    // If it's an absolute path starting with /api/, remove the /api prefix
+    if (avatar.startsWith('/api/')) return avatar.replace(/^\/api/, '')
+
+    // Otherwise return as-is (relative path or already /profile/...)
+    return avatar
+  } catch {
+    // if URL parsing fails, just return original
+    return avatar
+  }
+}
+
 const variantsFor = (avatar?: string | null) => {
   // produce candidate URLs to try loading, in order of preference
   if (!avatar) return [defaultAvatar]
@@ -40,10 +69,10 @@ const variantsFor = (avatar?: string | null) => {
     // as last resort include the original proxied avatar (may be used in prod setups)
     candidates.push(avatar)
   } else if (base.startsWith('/api/')) {
-    // generic api path: try as-is then raw
+    // generic api path: try raw then as-is
+    candidates.push(base.replace(/^\/api/, ''))
     candidates.push(avatar)
     candidates.push(base)
-    candidates.push(base.replace(/^\/api/, ''))
   } else if (base.startsWith('/')) {
     // other absolute path
     candidates.push(avatar)
@@ -84,10 +113,21 @@ const safeSetAvatar = async (avatar?: string | null) => {
     return
   }
 
-  if (isDataOrRemote(avatar)) {
+  // sanitize avatar: remove /api prefix when pointing to profile static files
+  const candidate = sanitizeAvatar(avatar)
+
+  // if candidate is falsy after sanitize, fallback
+  if (!candidate) {
+    avatarSrc.value = defaultAvatar
+    return
+  }
+
+  // if candidate is remote (full http URL) but points to /api/profile, sanitizeAvatar returned pathname
+  // if candidate is still a full url to a remote host, try to load it directly
+  if (isDataOrRemote(candidate)) {
     try {
-      await preloadImage(avatar)
-      avatarSrc.value = avatar
+      await preloadImage(candidate)
+      avatarSrc.value = candidate
       return
     } catch {
       console.warn('Navbar: data/remote avatar failed to load, falling back')
@@ -96,12 +136,11 @@ const safeSetAvatar = async (avatar?: string | null) => {
     }
   }
 
-  const candidates = variantsFor(avatar)
+  const candidates = variantsFor(candidate)
   for (const c of candidates) {
     try {
       // try to load candidate
       const tryUrl = c
-      // eslint-disable-next-line no-await-in-loop
       await preloadImage(tryUrl)
       avatarSrc.value = tryUrl
       return
@@ -119,12 +158,14 @@ const loadFromSession = () => {
     const raw = sessionStorage.getItem('userProfile') || sessionStorage.getItem('userInfo')
     if (raw) {
       const parsed = JSON.parse(raw)
-      void safeSetAvatar(parsed.avatar)
+      // normalize avatar and set
+      void safeSetAvatar(sanitizeAvatar(parsed.avatar ?? parsed.avatarUrl ?? parsed.avatar_url ?? parsed.avatarPath ?? null))
       // prefer userName, then nickname/username/account
       displayName.value = parsed.userName || parsed.nickname || parsed.username || parsed.account || ''
-      // determine admin role from either profile or userInfo
-      const role = (parsed.role || parsed.authority || parsed.user?.role || '')
-      isAdmin.value = role === 'admin'
+      // determine admin role from either profile or userInfo; support several common shapes
+      const roleIndicator = parsed.role || parsed.authority || parsed.authorities || parsed.roles || parsed.user?.role || parsed.user?.roles || parsed.user?.authorities || ''
+      // roleIndicator may be a string or an array
+      isAdmin.value = isRoleAdmin(roleIndicator)
     } else {
       avatarSrc.value = defaultAvatar
       displayName.value = ''
@@ -149,10 +190,12 @@ const onUserProfileUpdated = (event: Event) => {
       isAdmin.value = false
       return
     }
-    void safeSetAvatar(detail.avatar)
+    // sanitize avatar from event detail as well
+    void safeSetAvatar(sanitizeAvatar(detail.avatar ?? detail.avatarUrl ?? null))
     displayName.value = detail.userName || detail.nickname || detail.username || detail.account || ''
-    // detail may include role
-    isAdmin.value = (detail.role === 'admin')
+    // detail may include role in several shapes
+    const roleIndicator = detail.role || detail.authority || detail.authorities || detail.roles || detail.user?.role || detail.user?.roles || ''
+    isAdmin.value = isRoleAdmin(roleIndicator)
   } catch (err) {
     console.warn('Navbar: userProfileUpdated 事件处理失败', err)
   }
@@ -163,10 +206,10 @@ const onStorage = (e: StorageEvent) => {
     if (e.newValue) {
       try {
         const parsed = JSON.parse(e.newValue)
-        void safeSetAvatar(parsed.avatar)
+        void safeSetAvatar(sanitizeAvatar(parsed.avatar ?? parsed.avatarUrl ?? null))
         displayName.value = parsed.userName || parsed.nickname || parsed.username || parsed.account || ''
-        const role = (parsed.role || parsed.authority || parsed.user?.role || '')
-        isAdmin.value = role === 'admin'
+        const roleIndicator = parsed.role || parsed.authority || parsed.authorities || parsed.roles || parsed.user?.role || parsed.user?.roles || ''
+        isAdmin.value = isRoleAdmin(roleIndicator)
       } catch (err) {
         console.warn('Navbar: storage 事件解析失败', err)
       }
@@ -194,20 +237,57 @@ onUnmounted(() => {
   window.removeEventListener('userProfileUpdated', onUserProfileUpdated as EventListener)
   window.removeEventListener('storage', onStorage)
 })
+
+// click helpers to avoid template attribute parsing warnings
+const goMeeting = () => go('/meeting')
+const goAdminMeetingroom = () => go('/admin/meetingroom')
+const goAdminUser = () => go('/admin/user')
+const goUser = () => go('/user')
+
+// helper to detect admin role in various shapes
+const isRoleAdmin = (roleIndicator: unknown): boolean => {
+  if (!roleIndicator) return false
+  const regex = /(^|\W)(admin|ROLE_ADMIN)(\W|$)/i
+  if (typeof roleIndicator === 'string') return regex.test(roleIndicator)
+  if (Array.isArray(roleIndicator)) {
+    for (const item of roleIndicator as unknown[]) {
+      if (!item) continue
+      if (typeof item === 'string' && regex.test(item)) return true
+      if (typeof item === 'object') {
+        const obj = item as Record<string, unknown>
+        const v = String(obj.authority ?? obj.role ?? obj.name ?? '')
+        if (regex.test(v)) return true
+      }
+    }
+    return false
+  }
+  if (typeof roleIndicator === 'object') {
+    const obj = roleIndicator as Record<string, unknown>
+    const v = String(obj.authority ?? obj.role ?? obj.name ?? '')
+    return regex.test(v)
+  }
+  return false
+}
 </script>
 
 <template>
   <nav class="sidebar" aria-label="主侧边导航">
-    <div class="avatar-wrapper" @click.prevent="go('/user')" role="button" tabindex="0" aria-label="个人信息">
+    <div class="avatar-wrapper" @click.prevent="goUser" role="button" aria-label="个人信息">
       <img class="avatar" :src="avatarSrc" alt="avatar" @error="onAvatarError" />
       <div class="avatar-name" v-if="displayName">{{ displayName }}</div>
     </div>
 
     <ul class="nav-list">
-      <li class="nav-item" @click.prevent="go('/meeting')" role="button" tabindex="0" aria-label="会议">会议</li>
+      <li class="nav-item">
+        <button type="button" class="nav-btn" @click.prevent="goMeeting" aria-label="会议">会议</button>
+      </li>
       <!-- 管理入口，仅管理员可见 -->
-      <li v-if="isAdmin" class="nav-item" @click.prevent="go('/admin/meetingroom')" role="button" tabindex="0">会议室管理</li>
-      <li v-if="isAdmin" class="nav-item" @click.prevent="go('/admin/user')" role="button" tabindex="0">用户管理</li>
+      <li v-if="isAdmin" class="nav-item">
+        <button type="button" class="nav-btn" @click.prevent="goAdminMeetingroom">会议室管理</button>
+      </li>
+      <li v-if="isAdmin" class="nav-item">
+        <button type="button" class="nav-btn" @click.prevent="goAdminUser">用户管理</button>
+      </li>
       <!-- 未来导航项占位 -->
       <li class="nav-item placeholder">更多</li>
     </ul>
@@ -275,6 +355,11 @@ onUnmounted(() => {
 
 .nav-item {
   width: 100%;
+  padding: 0; /* reset since button will provide padding */
+}
+
+.nav-btn {
+  width: 100%;
   padding: 10px 14px;
   border-radius: 8px;
   color: #fff;
@@ -282,10 +367,12 @@ onUnmounted(() => {
   text-align: center;
   cursor: pointer;
   user-select: none;
+  background: transparent;
+  border: none;
   transition: background-color 0.18s ease, transform 0.12s ease;
 }
 
-.nav-item:hover {
+.nav-btn:hover {
   background: rgba(255,255,255,0.08);
   transform: translateY(-1px);
 }
