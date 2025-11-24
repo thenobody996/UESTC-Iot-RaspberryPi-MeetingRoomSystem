@@ -185,4 +185,110 @@ public class MeetingController {
         }
     }
 
+    // ===== 新增的搜索接口（按标题、按 hoster、按 place、按 place 的 upcoming/finished/ongoing） =====
+
+    @Operation(summary = "根据标题模糊查询会议", description = "传入 title,page,size 获取分页的会议列表")
+    @GetMapping("/search/title")
+    public ResponseEntity<Object> searchByTitle(
+            @RequestParam String title,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        List<Meeting> meetingList = meetingService.searchMeetingsByTitle(title, page, size);
+        Long total = meetingService.countMeetings();
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", meetingList);
+        result.put("total", total);
+        return ResponseEntity.ok().body(result);
+    }
+
+    @Operation(summary = "根据主持人查询会议", description = "传入 hosterId,page,size 获取分页的会议列表")
+    @GetMapping("/search/hoster/{hosterId}")
+    public ResponseEntity<Object> searchByHoster(
+            @PathVariable Integer hosterId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        User hoster = userService.getUserById(hosterId);
+        if (hoster == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("hoster not found");
+        }
+        List<Meeting> meetingList = meetingService.searchMeetingsByHoster(hoster, page, size);
+        Long total = meetingService.countMeetings();
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", meetingList);
+        result.put("total", total);
+        return ResponseEntity.ok().body(result);
+    }
+
+    @Operation(summary = "根据地点(会议室)查询会议", description = "传入 placeId,page,size 获取分页的会议列表")
+    @GetMapping("/search/place/{placeId}")
+    public ResponseEntity<Object> searchByPlace(
+            @PathVariable Integer placeId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        MeetingRoom place = meetingRoomService.getMeetingRoomById(placeId);
+        if (place == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("place not found");
+        }
+        List<Meeting> meetingList = meetingService.searchMeetingsByPlace(place, page, size);
+        Long total = meetingService.countMeetings();
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", meetingList);
+        result.put("total", total);
+        return ResponseEntity.ok().body(result);
+    }
+
+    @Operation(summary = "获取指定会议室的即将开始会议(分页)", description = "传入 placeId,page,size 获取分页的会议列表")
+    @GetMapping("/search/place/{placeId}/upcoming")
+    public ResponseEntity<Object> searchUpcomingByPlace(
+            @PathVariable Integer placeId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        MeetingRoom place = meetingRoomService.getMeetingRoomById(placeId);
+        if (place == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("place not found");
+        }
+        List<Meeting> meetingList = meetingService.searchUpcomingMeetingsByPlace(place, page, size);
+        Long total = meetingService.countMeetings();
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", meetingList);
+        result.put("total", total);
+        return ResponseEntity.ok().body(result);
+    }
+
+    @Operation(summary = "获取指定会议室的已结束会议(分页)", description = "传入 placeId,page,size 获取分页的会议列表")
+    @GetMapping("/search/place/{placeId}/finished")
+    public ResponseEntity<Object> searchFinishedByPlace(
+            @PathVariable Integer placeId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        MeetingRoom place = meetingRoomService.getMeetingRoomById(placeId);
+        if (place == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("place not found");
+        }
+        List<Meeting> meetingList = meetingService.searchFinishedMeetingsByPlace(place, page, size);
+        Long total = meetingService.countMeetings();
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", meetingList);
+        result.put("total", total);
+        return ResponseEntity.ok().body(result);
+    }
+
+    @Operation(summary = "获取指定会议室的进行中会议(分页)", description = "传入 placeId,page,size 获取分页的会议列表")
+    @GetMapping("/search/place/{placeId}/ongoing")
+    public ResponseEntity<Object> searchOngoingByPlace(
+            @PathVariable Integer placeId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        MeetingRoom place = meetingRoomService.getMeetingRoomById(placeId);
+        if (place == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("place not found");
+        }
+        List<Meeting> meetingList = meetingService.searchOngoingMeetingsByPlace(place, page, size);
+        Long total = meetingService.countMeetings();
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", meetingList);
+        result.put("total", total);
+        return ResponseEntity.ok().body(result);
+    }
+
 }

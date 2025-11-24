@@ -22,19 +22,19 @@ public interface MeetingRepository extends JpaRepository<Meeting, Integer> {
 
     Meeting findByIdAndIsDeletedFalse(Integer id);
 
-    List<Meeting> findByTitleContainingAndIsDeletedFalse(String title);
+    Page<Meeting> findByTitleContainingAndIsDeletedFalse(String title,Pageable pageable);
 
-    List<Meeting> findByPlaceAndIsDeletedFalse(MeetingRoom place);
+    Page<Meeting> findByPlaceAndIsDeletedFalse(MeetingRoom place,Pageable pageable);
 
 
     @Query("SELECT m FROM Meeting m WHERE m.place = :place AND m.isDeleted = false AND m.startTime > CURRENT_TIMESTAMP")
-    List<Meeting> findUpcomingMeetingsByPlaceAndIsDeletedFalse(@Param("place")MeetingRoom place);
+    Page<Meeting> findUpcomingMeetingsByPlaceAndIsDeletedFalse(@Param("place")MeetingRoom place,Pageable pageable);
 
     @Query("SELECT m FROM Meeting m WHERE m.place = :place AND m.isDeleted = false AND m.endTime < CURRENT_TIMESTAMP")
-    List<Meeting> findFinishedMeetingsByPlace(@Param("place")MeetingRoom place);
+    Page<Meeting> findFinishedMeetingsByPlace(@Param("place")MeetingRoom place,Pageable pageable);
 
     @Query("SELECT m FROM Meeting m WHERE m.place = :place AND m.isDeleted = false AND m.startTime <= CURRENT_TIMESTAMP AND m.endTime >= CURRENT_TIMESTAMP")
-    List<Meeting> findOngoingMeetingsByPlace(@Param("place")MeetingRoom place);
+    Page<Meeting> findOngoingMeetingsByPlace(@Param("place")MeetingRoom place,Pageable pageable);
 
-    List<Meeting> findByHosterAndIsDeletedFalse(User hoster);
+    Page<Meeting> findByHosterAndIsDeletedFalse(User hoster,Pageable pageable);
 }

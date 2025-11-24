@@ -5,6 +5,7 @@ import com.zongshe.pack.Entity.MeetingRoom;
 import com.zongshe.pack.Entity.User;
 import com.zongshe.pack.Repository.MeetingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -115,28 +116,28 @@ public class MeetingService {
     }
 
 
-    public List<Meeting> searchMeetingsByTitle(String title) {
-        return meetingRepository.findByTitleContainingAndIsDeletedFalse(title);
+    public List<Meeting> searchMeetingsByTitle(String title, Integer page, Integer pageSize) {
+        return meetingRepository.findByTitleContainingAndIsDeletedFalse(title, PageRequest.of(page, pageSize)).getContent();
     }
 
-    public List<Meeting> searchMeetingsByHoster(User hoster) {
-        return meetingRepository.findByHosterAndIsDeletedFalse(hoster);
+    public List<Meeting> searchMeetingsByHoster(User hoster, Integer page, Integer pageSize) {
+        return meetingRepository.findByHosterAndIsDeletedFalse(hoster, PageRequest.of(page, pageSize)).getContent();
     }
 
-    public List<Meeting> searchMeetingsByPlace(MeetingRoom place) {
-        return meetingRepository.findByPlaceAndIsDeletedFalse(place);
+    public List<Meeting> searchMeetingsByPlace(MeetingRoom place, Integer page, Integer pageSize) {
+        return meetingRepository.findByPlaceAndIsDeletedFalse(place, PageRequest.of(page, pageSize)).getContent();
     }
 
-    public List<Meeting> searchUpcomingMeetingsByPlace(MeetingRoom place) {
-        return meetingRepository.findUpcomingMeetingsByPlaceAndIsDeletedFalse(place);
+    public List<Meeting> searchUpcomingMeetingsByPlace(MeetingRoom place, Integer page, Integer pageSize) {
+        return meetingRepository.findUpcomingMeetingsByPlaceAndIsDeletedFalse(place, PageRequest.of(page, pageSize)).getContent();
     }
 
-    public List<Meeting> searchFinishedMeetingsByPlace(MeetingRoom place) {
-        return meetingRepository.findFinishedMeetingsByPlace(place);
+    public List<Meeting> searchFinishedMeetingsByPlace(MeetingRoom place, Integer page, Integer pageSize) {
+        return meetingRepository.findFinishedMeetingsByPlace(place, PageRequest.of(page, pageSize)).getContent();
     }
 
-    public List<Meeting> searchOngoingMeetingsByPlace(MeetingRoom place) {
-        return meetingRepository.findOngoingMeetingsByPlace(place);
+    public List<Meeting> searchOngoingMeetingsByPlace(MeetingRoom place, Integer page, Integer pageSize) {
+        return meetingRepository.findOngoingMeetingsByPlace(place, PageRequest.of(page, pageSize)).getContent();
     }
 
     // 获取会议成员分页列表
