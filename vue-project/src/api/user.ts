@@ -28,12 +28,18 @@ export const userAPI = {
   },
 
   // 获取所有用户
-  getAllUsers: (): Promise<BaseResponse<User[]>> => {
-    return request.get<User[]>('/user/')
+  getAllUsers: (page?: number, size?: number): Promise<BaseResponse<User[]>> => {
+    const params: Record<string, number> = {}
+    if (typeof page === 'number') params.page = page
+    if (typeof size === 'number') params.size = size
+    return request.get<User[]>('/user/', { params: Object.keys(params).length ? params : undefined })
   },
 
   // 删除用户
   deleteUser: (id: number): Promise<BaseResponse<User>> => {
     return request.delete<User>(`/user/delete/${id}`)
-  }
+  },
+
+  // 获取用户加入的会议
+  getJoinedMeetings: (userId: number) => request.get(`/user/joinedmeetings/${userId}`)
 }

@@ -53,8 +53,8 @@
 
           <div class="schedule-list">
             <div
-              v-for="(meeting, index) in todayMeetings"
-              :key="index"
+              v-for="(meeting, index) in displayedMeetings"
+              :key="meeting.meetingId ?? meeting.id ?? index"
               class="schedule-item"
               :class="{ active: meeting.isActive }"
             >
@@ -91,7 +91,7 @@
               </div>
             </div>
 
-            <div v-if="todayMeetings.length === 0" class="empty-schedule">
+            <div v-if="displayedMeetings.length === 0" class="empty-schedule">
               <el-icon><Calendar /></el-icon>
               <p>今日暂无会议安排</p>
             </div>
@@ -417,33 +417,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import {
   VideoCamera,
   VideoPlay,
   Calendar,
-  Document,
-  Plus
+  Document
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
 
+// types
+import type { MeetingRequest } from '@/types/api'
+
+// 新增：引入后端 meeting API
+import { meetingAPI } from '@/api/meeting'
+
 // 扩展 dayjs 插件
 dayjs.extend(isBetween)
 
-// 定义会议接口
+// 定义会议接口（与 types/api.ts 保持兼容）
 interface Meeting {
   id?: number
-  title: string
-  startTime: string
-  endTime: string
-  duration: string
-  room: string
-  participants: number
-  isActive: boolean
-  time: string
-  hasPassword: boolean
+  title?: string
+  startTime?: string
+  endTime?: string
+  duration?: string
+  room?: string
+  participants?: number
+  isActive?: boolean
+  time?: string
+  hasPassword?: boolean
   password?: string
   meetingId?: string
 }
@@ -477,18 +482,13 @@ interface Room {
 }
 
 // 当前日期信息
-const currentDate = reactive({
-  day: '',
-  weekday: '',
-  fullDate: ''
-})
+const currentDate = reactive({ day: '', weekday: '', fullDate: '' })
 
-// 今日会议日程 - 初始为空
+// 今日会议日程 - 初始为空（前端示例）
 const todayMeetings = ref<Meeting[]>([])
 
-// 所有会议记录（包括过去的会议）
+// 所有会议记录（包括过去的会议） - 本地示例作为降级显示
 const allRecords = ref<Meeting[]>([
-  // 今天
   {
     id: 1,
     title: '产品需求评审会议',
@@ -501,311 +501,229 @@ const allRecords = ref<Meeting[]>([
     time: '09:30',
     hasPassword: false,
     meetingId: 'M12345678'
-  },
-  // 昨天
-  {
-    id: 2,
-    title: '技术方案讨论',
-    startTime: dayjs().subtract(1, 'day').format('YYYY-MM-DD 14:00'),
-    endTime: dayjs().subtract(1, 'day').format('YYYY-MM-DD 15:00'),
-    duration: '1小时',
-    room: '会议室2',
-    participants: 5,
-    isActive: false,
-    time: '14:00',
-    hasPassword: true,
-    meetingId: 'M23456789'
-  },
-  // 3天前
-  {
-    id: 3,
-    title: '项目进度同步会',
-    startTime: dayjs().subtract(3, 'day').format('YYYY-MM-DD 16:30'),
-    endTime: dayjs().subtract(3, 'day').format('YYYY-MM-DD 17:00'),
-    duration: '30分钟',
-    room: '会议室1',
-    participants: 12,
-    isActive: false,
-    time: '16:30',
-    hasPassword: false,
-    meetingId: 'M34567890'
-  },
-  // 10天前
-  {
-    id: 4,
-    title: '月度总结会议',
-    startTime: dayjs().subtract(10, 'day').format('YYYY-MM-DD 10:00'),
-    endTime: dayjs().subtract(10, 'day').format('YYYY-MM-DD 11:30'),
-    duration: '1.5小时',
-    room: '会议室2',
-    participants: 15,
-    isActive: false,
-    time: '10:00',
-    hasPassword: false,
-    meetingId: 'M45678901'
   }
 ])
 
 // 会议室列表
-const rooms = ref<Room[]>([
-  { id: 1, name: '会议室1', available: true },
-  { id: 2, name: '会议室2', available: true }
-])
+const rooms = ref<Room[]>([ { id: 1, name: '会议室1', available: true }, { id: 2, name: '会议室2', available: true } ])
 
-// 添加/编辑会议对话框
+// 对话与表单
 const showAddDialog = ref(false)
 const isEditMode = ref(false)
 const meetingFormRef = ref<FormInstance>()
-const newMeetingForm = reactive<NewMeetingForm>({
-  title: '',
-  startTime: '',
-  endTime: '',
-  durationType: 'fixed',
-  fixedDuration: '1小时',
-  room: '',
-  participants: 1,
-  usePassword: false,
-  password: ''
-})
+const newMeetingForm = reactive<NewMeetingForm>({ title: '', startTime: '', endTime: '', durationType: 'fixed', fixedDuration: '1小时', room: '', participants: 1, usePassword: false, password: '' })
 
-// 加入会议对话框
 const showJoinDialog = ref(false)
 const joinMeetingFormRef = ref<FormInstance>()
-const joinMeetingForm = reactive<JoinMeetingForm>({
-  meetingId: '',
-  nickname: '',
-  password: '',
-  hasPassword: false
-})
+const joinMeetingForm = reactive<JoinMeetingForm>({ meetingId: '', nickname: '', password: '', hasPassword: false })
 
-// 会议记录对话框
 const showMeetingRecordsDialog = ref(false)
 
-// 表单验证规则
+// 表单规则
 const meetingRules: FormRules = {
-  title: [
-    { required: true, message: '请输入会议标题', trigger: 'blur' },
-    { min: 2, max: 50, message: '会议标题长度在 2 到 50 个字符', trigger: 'blur' }
-  ],
-  startTime: [
-    { required: true, message: '请选择会议开始时间', trigger: 'change' }
-  ],
-  fixedDuration: [
-    { required: true, message: '请选择会议时长', trigger: 'change' }
-  ],
-  endTime: [
-    { required: true, message: '请选择会议结束时间', trigger: 'change' }
-  ],
-  room: [
-    { required: true, message: '请选择会议室', trigger: 'change' }
-  ],
-  participants: [
-    { required: true, message: '请填写参与人数', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入会议密码', trigger: 'blur' }
-  ]
+  title: [{ required: true, message: '请输入会议标题', trigger: 'blur' }, { min: 2, max: 50, message: '会议标题长度在 2 到 50 个字符', trigger: 'blur' }],
+  startTime: [{ required: true, message: '请选择会议开始时间', trigger: 'change' }],
+  fixedDuration: [{ required: true, message: '请选择会议时长', trigger: 'change' }],
+  endTime: [{ required: true, message: '请选择会议结束时间', trigger: 'change' }],
+  room: [{ required: true, message: '请选择会议室', trigger: 'change' }],
+  participants: [{ required: true, message: '请填写参与人数', trigger: 'blur' }],
+  password: [{ required: true, message: '请输��会议密码', trigger: 'blur' }]
 }
 
-// 加入会议表单验证规则
 const joinMeetingRules: FormRules = {
-  meetingId: [
-    { required: true, message: '请输入会议号', trigger: 'blur' }
-  ],
-  nickname: [
-    { required: true, message: '请输入您的昵称', trigger: 'blur' },
-    { min: 1, max: 20, message: '昵称长度在 1 到 20 个字符', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入会议密码', trigger: 'blur' }
-  ]
+  meetingId: [{ required: true, message: '请输入会议号', trigger: 'blur' }],
+  nickname: [{ required: true, message: '请输入您的昵称', trigger: 'blur' }, { min: 1, max: 20, message: '昵称长度在 1 到 20 个字符', trigger: 'blur' }],
+  password: [{ required: true, message: '请输入会议密码', trigger: 'blur' }]
 }
 
-// 计算可用的会议室
-const availableRooms = computed(() => {
-  return rooms.value.map(room => {
-    // 检查会议室是否被占用
-    const isOccupied = todayMeetings.value.some(meeting => {
-      if (meeting.room === room.name) {
-        const now = dayjs()
-        const meetingStart = dayjs(meeting.startTime)
-        const meetingEnd = dayjs(meeting.endTime)
+// 后端会议相关状态
+const backendMeetings = ref<Meeting[]>([])
+const meetingsLoading = ref(false)
+const meetingsPage = ref(0)
+const meetingsSize = ref(10)
+const meetingsTotal = ref(0)
 
-        // 使用 isBetween 检查当前时间是否在会议时间范围内
-        return now.isBetween(meetingStart, meetingEnd, null, '[]')
+// Helper: unwrap BaseResponse.data safely
+function unwrap<T>(resp: unknown): T | undefined { return ((resp as unknown) as { data?: unknown })?.data as T | undefined }
+
+// fetch meetings from backend
+async function fetchMeetings(page = 0, size = 10) {
+  try {
+    meetingsLoading.value = true
+    const resp = await meetingAPI.getAllMeetings(page, size)
+    const data = unwrap<Record<string, unknown>>(resp) ?? resp
+
+    if (data && typeof data === 'object') {
+      const d = data as Record<string, unknown>
+      if (Array.isArray(d['content'])) {
+        backendMeetings.value = (d['content'] as unknown) as Meeting[]
+        meetingsTotal.value = typeof d['totalElements'] === 'number' ? (d['totalElements'] as number) : backendMeetings.value.length
+        meetingsPage.value = (typeof d['number'] === 'number') ? ((d['number'] as number) + 1) : 1
+        meetingsSize.value = typeof d['size'] === 'number' ? (d['size'] as number) : size
+      } else if (Array.isArray(d['list'])) {
+        backendMeetings.value = (d['list'] as unknown) as Meeting[]
+        meetingsTotal.value = typeof d['total'] === 'number' ? (d['total'] as number) : backendMeetings.value.length
+        meetingsPage.value = (typeof d['page'] === 'number') ? ((d['page'] as number) + 1) : 1
+        meetingsSize.value = typeof d['pageSize'] === 'number' ? (d['pageSize'] as number) : size
+      } else if (Array.isArray(data)) {
+        backendMeetings.value = data as Meeting[]
+        meetingsTotal.value = backendMeetings.value.length
+        meetingsPage.value = 1
+        meetingsSize.value = backendMeetings.value.length
+      } else {
+        backendMeetings.value = []
+        meetingsTotal.value = 0
       }
-      return false
-    })
-
-    return {
-      ...room,
-      available: !isOccupied
+    } else {
+      backendMeetings.value = []
+      meetingsTotal.value = 0
     }
-  })
-})
+  } catch (err) {
+    console.error('fetchMeetings error', err)
+    ElMessage.error('加载会议列表失败')
+  } finally { meetingsLoading.value = false }
+}
+
+// 优先显示后端会议，否则显示本地 todayMeetings
+const displayedMeetings = computed(() => backendMeetings.value.length > 0 ? backendMeetings.value : todayMeetings.value)
 
 // 计算会议记录分组
 const todayRecords = computed(() => {
   const today = dayjs().format('YYYY-MM-DD')
-  return allRecords.value.filter(record =>
-    dayjs(record.startTime).format('YYYY-MM-DD') === today
-  )
+  return allRecords.value.filter(record => dayjs(record.startTime).format('YYYY-MM-DD') === today)
 })
-
 const yesterdayRecords = computed(() => {
   const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD')
-  return allRecords.value.filter(record =>
-    dayjs(record.startTime).format('YYYY-MM-DD') === yesterday
-  )
+  return allRecords.value.filter(record => dayjs(record.startTime).format('YYYY-MM-DD') === yesterday)
 })
-
 const weekRecords = computed(() => {
   const weekAgo = dayjs().subtract(7, 'day')
   const twoDaysAgo = dayjs().subtract(2, 'day')
-
   return allRecords.value.filter(record => {
     const recordDate = dayjs(record.startTime)
     return recordDate.isAfter(weekAgo) && recordDate.isBefore(twoDaysAgo, 'day')
   })
 })
-
 const earlierRecords = computed(() => {
   const weekAgo = dayjs().subtract(7, 'day')
-  return allRecords.value.filter(record =>
-    dayjs(record.startTime).isBefore(weekAgo)
-  )
+  return allRecords.value.filter(record => dayjs(record.startTime).isBefore(weekAgo))
 })
 
-// 计算结束时间（当选择固定时长时）
+// 计算可用的会议室
+const availableRooms = computed(() => {
+  return rooms.value.map(room => {
+    const isOccupied = (displayedMeetings.value ?? todayMeetings.value).some(meeting => {
+      if (meeting.room === room.name && meeting.startTime && meeting.endTime) {
+        const now = dayjs()
+        const meetingStart = dayjs(meeting.startTime)
+        const meetingEnd = dayjs(meeting.endTime)
+        return now.isBetween(meetingStart, meetingEnd, null, '[]')
+      }
+      return false
+    })
+    return { ...room, available: !isOccupied }
+  })
+})
+
+// 表单/按钮处理
+const handleJoinMeeting = () => { showJoinDialog.value = true; if (joinMeetingFormRef.value) joinMeetingFormRef.value.resetFields(); Object.assign(joinMeetingForm, { meetingId: '', nickname: '', password: '', hasPassword: false }) }
+const handleQuickMeeting = () => {
+  const currentUser = getCurrentUser()
+  const currentTime = dayjs()
+  const endTime = currentTime.add(1, 'hour')
+  const availableRoom = availableRooms.value.find(r => r.available)
+  if (!availableRoom) { ElMessage.warning('当前没有可用的会议室'); return }
+  const quickMeeting: Meeting = { title: `${currentUser}的会议`, startTime: currentTime.format('YYYY-MM-DD HH:mm'), endTime: endTime.format('YYYY-MM-DD HH:mm'), duration: '1小时', room: availableRoom.name, participants: 1, isActive: true, time: currentTime.format('HH:mm'), hasPassword: false, meetingId: `QM${Date.now().toString().slice(-6)}` }
+  todayMeetings.value.push(quickMeeting)
+  todayMeetings.value.sort((a,b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
+  ElMessage.success(`快速会议已创建，会议号: ${quickMeeting.meetingId}`)
+}
+const handleScheduleMeeting = () => { showAddDialog.value = true; isEditMode.value = false; resetForm() }
+const handleMeetingRecords = () => { showMeetingRecordsDialog.value = true }
+
+const joinScheduledMeeting = (meeting: Meeting) => {
+  if (meeting.hasPassword) { showJoinDialog.value = true; joinMeetingForm.meetingId = meeting.meetingId || ''; joinMeetingForm.hasPassword = true } else { ElMessage.success(`加入会议: ${meeting.title}`) }
+}
+
+// 重置表单等
+const resetForm = () => { if (meetingFormRef.value) meetingFormRef.value.clearValidate(); Object.assign(newMeetingForm, { title: '', startTime: dayjs().format('YYYY-MM-DD HH:mm'), endTime: dayjs().add(1, 'hour').format('YYYY-MM-DD HH:mm'), durationType: 'fixed', fixedDuration: '1小时', room: '', participants: 1, usePassword: false, password: '' }) }
+
 const computedEndTime = computed(() => {
-  if (!newMeetingForm.startTime || newMeetingForm.durationType !== 'fixed') {
-    return ''
-  }
-
+  if (!newMeetingForm.startTime || newMeetingForm.durationType !== 'fixed') return ''
   const start = dayjs(newMeetingForm.startTime)
-  const durationMap: Record<string, number> = {
-    '15分钟': 15,
-    '30分钟': 30,
-    '45分钟': 45,
-    '1小时': 60,
-    '2小时': 120,
-    '3小时': 180
-  }
-
+  const durationMap: Record<string, number> = { '15分钟':15,'30分钟':30,'45分钟':45,'1小时':60,'2小时':120,'3小时':180 }
   const minutes = durationMap[newMeetingForm.fixedDuration] || 60
   return start.add(minutes, 'minute').format('YYYY-MM-DD HH:mm')
 })
 
-// 设置默认开始时间为当前时间
-const setDefaultStartTime = () => {
-  newMeetingForm.startTime = dayjs().format('YYYY-MM-DD HH:mm')
-}
-
-// 设置默认结束时间为开始时间后1小时
-const setDefaultEndTime = () => {
-  newMeetingForm.endTime = dayjs(newMeetingForm.startTime).add(1, 'hour').format('YYYY-MM-DD HH:mm')
-}
-
-// 监听开始时间变化，更新结束时间
-watch(() => newMeetingForm.startTime, (newVal) => {
-  if (newVal && newMeetingForm.durationType === 'fixed') {
-    newMeetingForm.endTime = computedEndTime.value
-  } else if (newVal && !newMeetingForm.endTime) {
-    setDefaultEndTime()
-  }
-})
-
-// 监听时长类型变化
-watch(() => newMeetingForm.durationType, (newVal) => {
-  if (newVal === 'fixed' && newMeetingForm.startTime) {
-    newMeetingForm.endTime = computedEndTime.value
-  }
-})
-
-// 监听固定时长变化
-watch(() => newMeetingForm.fixedDuration, (newVal) => {
-  if (newMeetingForm.durationType === 'fixed' && newMeetingForm.startTime) {
-    newMeetingForm.endTime = computedEndTime.value
-  }
-})
-
-// 禁用过去的日期
-const disabledDate = (time: Date) => {
-  return time.getTime() < Date.now() - 24 * 60 * 60 * 1000
-}
-
-// 禁用过去的时间（如果是今天）
+// disabled helpers
+const disabledDate = (time: Date) => time.getTime() < Date.now() - 24 * 60 * 60 * 1000
 const disabledTime = (time: Date) => {
   if (dayjs(time).isSame(dayjs(), 'day')) {
-    const now = dayjs()
-    const selected = dayjs(time)
-
-    return {
-      hours: () => selected.hour() < now.hour(),
-      minutes: (selectedHour: number) =>
-        selectedHour === now.hour() ? selected.minute() < now.minute() : false
-    }
+    const now = dayjs(); const selected = dayjs(time)
+    return { hours: () => selected.hour() < now.hour(), minutes: () => (selected.hour() === now.hour() ? selected.minute() < now.minute() : false) }
   }
   return {}
 }
-
-// 禁用结束日期（只能选择开始时间的当天和第二天）
 const disabledEndDate = (time: Date) => {
   if (!newMeetingForm.startTime) return time.getTime() < Date.now() - 24 * 60 * 60 * 1000
-
   const startDate = dayjs(newMeetingForm.startTime).startOf('day')
-  const endLimit = startDate.add(1, 'day') // 最多只能选择到第二天
-
+  const endLimit = startDate.add(1,'day')
   return time.getTime() < startDate.valueOf() || time.getTime() > endLimit.valueOf()
 }
-
-// 禁用结束时间（不能早于开始时间，且不能超过开始时间24小时）
 const disabledEndTime = (time: Date) => {
   if (!newMeetingForm.startTime) return {}
-
-  const start = dayjs(newMeetingForm.startTime)
-  const selected = dayjs(time)
-  const maxEndTime = start.add(24, 'hour') // 最多24小时
-
-  // 如果选择的日期是开始时间的第二天，检查时间是否超过最大限制
-  if (selected.isAfter(start, 'day')) {
-    return {
-      hours: () => selected.hour() > maxEndTime.hour(),
-      minutes: (selectedHour: number) =>
-        selectedHour === maxEndTime.hour() ? selected.minute() > maxEndTime.minute() : false
-    }
-  }
-
-  // 如果是同一天，检查时间是否在开始时间和最大结束时间之间
-  if (selected.isSame(start, 'day')) {
-    return {
-      hours: () => selected.hour() < start.hour() || selected.hour() > maxEndTime.hour(),
-      minutes: (selectedHour: number) => {
-        if (selectedHour === start.hour()) {
-          return selected.minute() <= start.minute()
-        } else if (selectedHour === maxEndTime.hour()) {
-          return selected.minute() > maxEndTime.minute()
-        }
-        return false
-      }
-    }
-  }
-
+  const start = dayjs(newMeetingForm.startTime); const selected = dayjs(time); const maxEndTime = start.add(24,'hour')
+  if (selected.isAfter(start,'day')) { return { hours: () => selected.hour() > maxEndTime.hour(), minutes: (h:number) => h===maxEndTime.hour() ? selected.minute() > maxEndTime.minute() : false } }
+  if (selected.isSame(start,'day')) { return { hours: () => selected.hour() < start.hour() || selected.hour() > maxEndTime.hour(), minutes: (h:number) => { if (h===start.hour()) return selected.minute() <= start.minute(); if (h===maxEndTime.hour()) return selected.minute() > maxEndTime.minute(); return false } } }
   return {}
 }
 
-// 初始化日期信息
-const initDateInfo = () => {
-  const now = new Date()
-  const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+// 创建会议���调用后端）
+const confirmAddSchedule = async () => {
+  if (!meetingFormRef.value) return
+  try {
+    const valid = await meetingFormRef.value.validate()
+    if (!valid) return
+    let endTime = newMeetingForm.endTime
+    if (newMeetingForm.durationType === 'fixed') endTime = computedEndTime.value
+    if (!endTime) { ElMessage.warning('请确保结束时间有效'); return }
+    if (dayjs(endTime).isBefore(dayjs(newMeetingForm.startTime))) { ElMessage.warning('结束时间不能早于开始时间'); return }
+    const start = dayjs(newMeetingForm.startTime); const end = dayjs(endTime)
+    if (end.diff(start,'hour',true) > 24) { ElMessage.warning('会议时长不能超过24小时'); return }
 
-  currentDate.day = now.getDate().toString()
-  currentDate.weekday = days[now.getDay()]
-  currentDate.fullDate = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`
+    const payload: MeetingRequest = { host_id: undefined, place_id: undefined, title: newMeetingForm.title, description: '', start_time: newMeetingForm.startTime, end_time: endTime, members_id: [] }
+
+    try {
+      await meetingAPI.createMeeting(payload)
+      ElMessage.success('会议创建成功')
+      showAddDialog.value = false
+      resetForm()
+      setTimeout(() => fetchMeetings(0, meetingsSize.value), 500)
+    } catch (e) {
+      console.error('create meeting error', e)
+      ElMessage.error('创建会议失败')
+    }
+  } catch (error) {
+    console.error('表单验证失败:', error)
+    ElMessage.error('添加会议失败，请重试')
+  }
 }
 
-// 获取当前用户信息
-const getCurrentUser = () => {
+// 加入会议对话（模拟）
+const confirmJoinMeeting = async () => {
+  if (!joinMeetingFormRef.value) return
+  try {
+    const valid = await joinMeetingFormRef.value.validate()
+    if (!valid) return
+    ElMessage.success(`成功加入会议，会议号: ${joinMeetingForm.meetingId}`)
+    showJoinDialog.value = false
+    if (joinMeetingFormRef.value) joinMeetingFormRef.value.resetFields()
+  } catch (e) { console.error('join validate error', e); ElMessage.error('加入会议失败') }
+}
+
+// 工具函数
+const getCurrentUser = (): string => {
   try {
     const userInfo = sessionStorage.getItem('userInfo')
     if (userInfo) {
@@ -818,238 +736,38 @@ const getCurrentUser = () => {
   return '用户'
 }
 
-// 格式化日期
-const formatDate = (dateString: string, format: string) => {
+const formatDate = (dateString: string | undefined, format = 'YYYY-MM-DD') => {
+  if (!dateString) return ''
   return dayjs(dateString).format(format)
 }
 
-// 左侧功能按钮处理
-const handleJoinMeeting = () => {
-  showJoinDialog.value = true
-  // 重置表单
-  if (joinMeetingFormRef.value) {
-    joinMeetingFormRef.value.resetFields()
-  }
-  Object.assign(joinMeetingForm, {
-    meetingId: '',
-    nickname: '',
-    password: '',
-    hasPassword: false
-  })
-}
-
-const handleQuickMeeting = () => {
-  try {
-    const currentUser = getCurrentUser()
-    const currentTime = dayjs()
-    const endTime = currentTime.add(1, 'hour')
-
-    // 查找空闲会议室
-    const availableRoom = availableRooms.value.find(room => room.available)
-    if (!availableRoom) {
-      ElMessage.warning('当前没有可用的会议室')
-      return
-    }
-
-    const quickMeeting: Meeting = {
-      title: `${currentUser}的会议`,
-      startTime: currentTime.format('YYYY-MM-DD HH:mm'),
-      endTime: endTime.format('YYYY-MM-DD HH:mm'),
-      duration: '1小时',
-      room: availableRoom.name,
-      participants: 1,
-      isActive: true,
-      time: currentTime.format('HH:mm'),
-      hasPassword: false,
-      meetingId: `QM${Date.now().toString().slice(-6)}`
-    }
-
-    todayMeetings.value.push(quickMeeting)
-
-    // 按开始时间排序
-    todayMeetings.value.sort((a, b) => a.startTime.localeCompare(b.startTime))
-
-    ElMessage.success(`快速会议已创建，会议号: ${quickMeeting.meetingId}`)
-  } catch (error) {
-    console.error('创建快速会议时出错:', error)
-    ElMessage.error('创建快速会议失败，请重试')
-  }
-}
-
-const handleScheduleMeeting = () => {
-  showAddDialog.value = true
-  isEditMode.value = false
-  resetForm()
-}
-
-const handleMeetingRecords = () => {
-  showMeetingRecordsDialog.value = true
-}
-
-// 加入已安排的会议
-const joinScheduledMeeting = (meeting: Meeting) => {
-  if (meeting.hasPassword) {
-    // 如果会议有密码，需要先输入密码
-    showJoinDialog.value = true
-    joinMeetingForm.meetingId = meeting.meetingId || ''
-    joinMeetingForm.hasPassword = true
-  } else {
-    ElMessage.success(`加入会议: ${meeting.title}`)
-    // 实际开发中这里可以加入具体的会议
-  }
-}
-
-// 添加日程
-const handleAddSchedule = () => {
-  showAddDialog.value = true
-  isEditMode.value = false
-  resetForm()
-}
-
-// 重置表单
-const resetForm = () => {
-  if (meetingFormRef.value) {
-    meetingFormRef.value.clearValidate()
-  }
-  Object.assign(newMeetingForm, {
-    title: '',
-    startTime: dayjs().format('YYYY-MM-DD HH:mm'),
-    endTime: dayjs().add(1, 'hour').format('YYYY-MM-DD HH:mm'),
-    durationType: 'fixed',
-    fixedDuration: '1小时',
-    room: '',
-    participants: 1,
-    usePassword: false,
-    password: ''
-  })
-}
-
-// 计算会议时长显示
-const calculateDurationDisplay = (startTime: string, endTime: string): string => {
-  const start = dayjs(startTime)
-  const end = dayjs(endTime)
-  const diffMinutes = end.diff(start, 'minute')
-
-  if (diffMinutes < 60) {
-    return `${diffMinutes}分钟`
-  } else if (diffMinutes === 60) {
-    return '1小时'
-  } else {
-    const hours = Math.floor(diffMinutes / 60)
-    const minutes = diffMinutes % 60
-    return minutes > 0 ? `${hours}小时${minutes}分钟` : `${hours}小时`
-  }
-}
-
-// 生成会议ID
-const generateMeetingId = (): string => {
-  return `M${Date.now().toString().slice(-8)}`
-}
-
-// 确认添加日程
-const confirmAddSchedule = async () => {
-  if (!meetingFormRef.value) return
-
-  try {
-    const valid = await meetingFormRef.value.validate()
-    if (!valid) return
-
-    // 如果是固定时长模式，计算结束时间
-    let endTime = newMeetingForm.endTime
-    if (newMeetingForm.durationType === 'fixed') {
-      endTime = computedEndTime.value
-    }
-
-    if (!endTime) {
-      ElMessage.warning('请确保结束时间有效')
-      return
-    }
-
-    // 确保结束时间晚于开始时间
-    if (dayjs(endTime).isBefore(dayjs(newMeetingForm.startTime))) {
-      ElMessage.warning('结束时间不能早于开始时间')
-      return
-    }
-
-    // 确保会议时长不超过24小时
-    const start = dayjs(newMeetingForm.startTime)
-    const end = dayjs(endTime)
-    const diffHours = end.diff(start, 'hour', true)
-    if (diffHours > 24) {
-      ElMessage.warning('会议时长不能超过24小时')
-      return
-    }
-
-    const newMeeting: Meeting = {
-      title: newMeetingForm.title,
-      startTime: newMeetingForm.startTime,
-      endTime: endTime,
-      duration: calculateDurationDisplay(newMeetingForm.startTime, endTime),
-      room: newMeetingForm.room,
-      participants: newMeetingForm.participants,
-      isActive: false,
-      time: dayjs(newMeetingForm.startTime).format('HH:mm'),
-      hasPassword: newMeetingForm.usePassword,
-      password: newMeetingForm.usePassword ? newMeetingForm.password : undefined,
-      meetingId: generateMeetingId()
-    }
-
-    todayMeetings.value.push(newMeeting)
-
-    // 按开始时间排序
-    todayMeetings.value.sort((a, b) => a.startTime.localeCompare(b.startTime))
-
-    ElMessage.success(isEditMode.value ? '会议日程修改成功' : '会议日程添加成功')
-    showAddDialog.value = false
-    resetForm()
-  } catch (error) {
-    console.error('表单验证失败:', error)
-    ElMessage.error('添加会议失败，请重试')
-  }
-}
-
-// 确认加入会议
-const confirmJoinMeeting = async () => {
-  if (!joinMeetingFormRef.value) return
-
-  try {
-    const valid = await joinMeetingFormRef.value.validate()
-    if (!valid) return
-
-    // 在实际应用中，这里会验证会议号和密码
-    // 这里只是模拟成功加入
-    ElMessage.success(`成功加入会议，会议号: ${joinMeetingForm.meetingId}`)
-    showJoinDialog.value = false
-
-    // 重置表单
-    if (joinMeetingFormRef.value) {
-      joinMeetingFormRef.value.resetFields()
-    }
-  } catch (error) {
-    console.error('表单验证失败:', error)
-    ElMessage.error('加入会议失败，请重试')
-  }
-}
-
-// 查看会议记录详情
+// 新增：查看会议记录详情（绑定到模板按钮）
 const viewRecordDetails = (record: Meeting) => {
-  ElMessage.info(`查看会议记录: ${record.title}`)
-  // 在实际应用中，这里可以跳转到会议详情页面或显示更多信息
+  if (!record) return
+  ElMessage.info(`会议：${record.title ?? ''}\n时间：${record.startTime ?? ''} - ${record.endTime ?? ''}`)
 }
 
-onMounted(() => {
-  initDateInfo()
-  setDefaultStartTime()
-  setDefaultEndTime()
-})
+// 初始化辅助函数
+function initDateInfo() { const now = new Date(); const days = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六']; currentDate.day = now.getDate().toString(); currentDate.weekday = days[now.getDay()]; currentDate.fullDate = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日` }
+function setDefaultStartTime() { newMeetingForm.startTime = dayjs().format('YYYY-MM-DD HH:mm') }
+function setDefaultEndTime() { newMeetingForm.endTime = dayjs(newMeetingForm.startTime).add(1,'hour').format('YYYY-MM-DD HH:mm') }
+
+onMounted(() => { initDateInfo(); setDefaultStartTime(); setDefaultEndTime(); fetchMeetings(meetingsPage.value - 1, meetingsSize.value) })
 </script>
 
 <style scoped>
+:root{
+  --accent-color: #409EFF; /* 主强调色，Element 默认蓝 */
+  --success-color: #67C23A;
+  --muted-color: #6c757d;
+  --panel-bg: #f7f9fc;
+}
+
 .meeting-page {
   width: 100%;
   height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 20px;
+  background: linear-gradient(180deg, #f5f7fb 0%, #eef4fb 100%);
+  padding: 18px;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -1060,69 +778,69 @@ onMounted(() => {
   height: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(10, 28, 70, 0.06);
   overflow: hidden;
 }
 
-/* 左侧面板样式 */
+/* 左侧面板样式 - 收窄 */
 .left-panel {
-  flex: 1;
-  padding: 40px;
+  flex: 0 0 34%;
+  padding: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8f9fa;
-  border-right: 1px solid #e9ecef;
+  background: var(--panel-bg);
+  border-right: 1px solid rgba(16, 24, 40, 0.04);
 }
 
 .grid-container {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
-  gap: 30px;
+  gap: 18px;
   width: 100%;
-  max-width: 400px;
+  max-width: 360px;
 }
 
 .grid-item {
-  background: white;
-  border-radius: 12px;
-  padding: 30px 20px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px 16px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e9ecef;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 14px rgba(12, 18, 40, 0.04);
+  border: 1px solid rgba(16, 24, 40, 0.03);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 140px;
+  min-height: 110px;
 }
 
 .grid-item:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  border-color: #5b7cfa;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(16, 24, 40, 0.08);
+  border-color: rgba(64,158,255,0.18);
 }
 
 .grid-item .icon-wrapper {
-  color: #5b7cfa;
-  margin-bottom: 12px;
+  color: var(--accent-color);
+  margin-bottom: 10px;
 }
 
 .grid-item .label {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: #2c3e50;
+  color: #172b4d;
 }
 
-/* 右侧面板样式 */
+/* 右侧面板样式 - 扩大 */
 .right-panel {
   flex: 1;
-  padding: 40px;
+  padding: 28px 30px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -1130,38 +848,33 @@ onMounted(() => {
 }
 
 .date-section {
-  margin-bottom: 30px;
+  margin-bottom: 18px;
   flex-shrink: 0;
 }
 
 .current-date {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 14px;
 }
 
 .date-number {
-  font-size: 48px;
-  font-weight: bold;
-  color: #5b7cfa;
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--accent-color);
   line-height: 1;
 }
 
-.date-info {
-  display: flex;
-  flex-direction: column;
-}
-
 .weekday {
-  font-size: 20px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #172b4d;
+  margin-bottom: 6px;
 }
 
 .full-date {
-  font-size: 14px;
-  color: #6c757d;
+  font-size: 13px;
+  color: var(--muted-color);
 }
 
 .schedule-section {
@@ -1176,60 +889,56 @@ onMounted(() => {
 }
 
 .schedule-header h3 {
-  margin: 0 0 20px 0;
-  color: #2c3e50;
-  font-size: 18px;
-  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #172b4d;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .schedule-list {
   flex: 1;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 6px;
 }
 
 .schedule-item {
   display: flex;
   align-items: center;
-  padding: 16px;
-  margin-bottom: 12px;
-  background: #f8f9fa;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: #fbfdff;
   border-radius: 8px;
-  border-left: 4px solid #5b7cfa;
-  transition: all 0.3s ease;
+  border-left: 4px solid rgba(64,158,255,0.12);
+  transition: all 0.18s ease;
 }
 
 .schedule-item:hover {
-  background: #e9ecef;
+  background: #f6fbff;
 }
 
 .schedule-item.active {
-  border-left-color: #67c23a;
-  background: #f0f9ff;
+  border-left-color: var(--success-color);
+  background: #f6fff3;
 }
 
 .meeting-time {
-  min-width: 80px;
-  margin-right: 16px;
+  min-width: 84px;
+  margin-right: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .time {
-  font-size: 14px;
-  font-weight: 600;
-  color: #5b7cfa;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-color);
   margin-bottom: 4px;
 }
 
 .duration {
   font-size: 12px;
-  color: #6c757d;
-}
-
-.schedule-item.active .time {
-  color: #67c23a;
+  color: var(--muted-color);
 }
 
 .meeting-info {
@@ -1237,101 +946,94 @@ onMounted(() => {
 }
 
 .meeting-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
+  font-size: 15px;
+  font-weight: 700;
+  color: #10233f;
   margin-bottom: 4px;
 }
 
 .meeting-details {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   font-size: 12px;
-  color: #6c757d;
+  color: var(--muted-color);
 }
 
 .meeting-id {
   font-weight: 600;
-  color: #5b7cfa;
+  color: var(--accent-color);
 }
 
 .meeting-room {
   padding: 2px 6px;
-  background: #e9ecef;
+  background: #f0f6ff;
   border-radius: 4px;
 }
 
 .password-tag {
   padding: 2px 6px;
-  background: #fff2e8;
+  background: #fff7ed;
   color: #e6a23c;
   border-radius: 4px;
 }
 
 .meeting-actions {
-  min-width: 80px;
+  min-width: 92px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .empty-schedule {
   text-align: center;
-  padding: 40px 20px;
-  color: #6c757d;
+  padding: 28px 20px;
+  color: var(--muted-color);
 }
 
 .empty-schedule .el-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  color: #adb5bd;
+  font-size: 38px;
+  margin-bottom: 12px;
+  color: #c7dfff;
 }
 
-.empty-schedule p {
-  margin: 0;
-  font-size: 14px;
-}
-
-/* 会议记录样式 */
+/* 会议记录样式（对话框里） */
 .meeting-records-container {
-  max-height: 60vh;
+  max-height: 62vh;
   overflow-y: auto;
   padding-right: 10px;
 }
 
 .record-section {
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
 .section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e9ecef;
+  font-size: 14px;
+  font-weight: 700;
+  color: #10233f;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(16,24,40,0.04);
 }
 
 .record-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .record-item {
   display: flex;
   align-items: center;
-  padding: 16px;
-  background: #f8f9fa;
+  padding: 12px;
+  background: #fbfdff;
   border-radius: 8px;
-  border-left: 4px solid #5b7cfa;
-  transition: all 0.3s ease;
-}
-
-.record-item:hover {
-  background: #e9ecef;
+  border-left: 4px solid rgba(64,158,255,0.08);
 }
 
 .record-time {
-  min-width: 100px;
-  margin-right: 16px;
+  min-width: 92px;
+  margin-right: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1339,15 +1041,15 @@ onMounted(() => {
 }
 
 .record-time .date {
-  font-size: 14px;
-  font-weight: 600;
-  color: #5b7cfa;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-color);
   margin-bottom: 4px;
 }
 
 .record-time .time-duration {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--muted-color);
 }
 
 .record-info {
@@ -1355,164 +1057,36 @@ onMounted(() => {
 }
 
 .record-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2c3e50;
+  font-size: 14px;
+  font-weight: 700;
+  color: #10233f;
   margin-bottom: 4px;
 }
 
 .record-details {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   font-size: 12px;
-  color: #6c757d;
-}
-
-.record-id {
-  font-weight: 600;
-  color: #5b7cfa;
-}
-
-.record-room {
-  padding: 2px 6px;
-  background: #e9ecef;
-  border-radius: 4px;
-}
-
-.record-actions {
-  min-width: 80px;
-}
-
-.empty-records {
-  text-align: center;
-  padding: 40px 20px;
-  color: #6c757d;
+  color: var(--muted-color);
 }
 
 .empty-records .el-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  color: #adb5bd;
+  font-size: 38px;
+  margin-bottom: 12px;
+  color: #c7dfff;
 }
 
-.empty-records p {
-  margin: 0;
-  font-size: 14px;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .meeting-container {
-    flex-direction: column;
-    height: auto;
-    min-height: 100vh;
-  }
-
-  .left-panel {
-    border-right: none;
-    border-bottom: 1px solid #e9ecef;
-    padding: 20px;
-  }
-
-  .right-panel {
-    padding: 20px;
-  }
-
-  .grid-container {
-    gap: 15px;
-    max-width: 300px;
-  }
-
-  .grid-item {
-    padding: 20px 15px;
-    min-height: 120px;
-  }
-
-  .meeting-details,
-  .record-details {
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .record-time {
-    min-width: 80px;
-  }
-}
-
-/* 确保在超小屏幕上也能正常显示 */
-@media (max-height: 600px) {
-  .meeting-page {
-    padding: 10px;
-  }
-
-  .left-panel,
-  .right-panel {
-    padding: 20px;
-  }
-
-  .grid-container {
-    gap: 15px;
-  }
-
-  .grid-item {
-    padding: 15px 10px;
-    min-height: 100px;
-  }
-
-  .date-number {
-    font-size: 36px;
-  }
-
-  .weekday {
-    font-size: 16px;
-  }
-
-  .schedule-item,
-  .record-item {
-    padding: 12px;
-  }
-}
-
-/* 滚动条样式 */
-.schedule-list::-webkit-scrollbar,
-.meeting-records-container::-webkit-scrollbar {
-  width: 4px;
-}
-
-.schedule-list::-webkit-scrollbar-track,
-.meeting-records-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.schedule-list::-webkit-scrollbar-thumb,
-.meeting-records-container::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 2px;
-}
-
-.schedule-list::-webkit-scrollbar-thumb:hover,
-.meeting-records-container::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+/* 响应式 */
+@media (max-width: 900px) {
+  .meeting-container { flex-direction: column; height: auto; min-height: 100vh }
+  .left-panel { flex: none; width: 100%; border-right: none; border-bottom: 1px solid rgba(16, 24, 40, 0.04); padding: 18px }
+  .right-panel { padding: 18px }
+  .grid-container { max-width: 100%; gap: 12px }
 }
 
 /* 对话框样式调整 */
-:deep(.el-dialog) {
-  border-radius: 12px;
-}
-
-:deep(.el-form-item) {
-  margin-bottom: 20px;
-}
-
-:deep(.el-radio-group) {
-  width: 100%;
-}
-
-:deep(.el-radio) {
-  margin-right: 20px;
-}
-
-:deep(.el-select) {
-  width: 100%;
-}
+:deep(.el-dialog) { border-radius: 10px }
+:deep(.el-form-item) { margin-bottom: 16px }
+:deep(.el-radio-group) { width: 100% }
+:deep(.el-select) { width: 100% }
 </style>

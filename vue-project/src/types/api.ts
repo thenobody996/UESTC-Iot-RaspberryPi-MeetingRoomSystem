@@ -68,3 +68,28 @@ export interface MeetingRoomRequest {
   description?: string
   locateURL?: string
 }
+
+// 会议相关类型（根据后端 OpenAPI）
+export interface Meeting {
+  id?: number
+  hoster?: User
+  place?: MeetingRoom
+  title?: string
+  description?: string
+  startTime?: string
+  endTime?: string
+  create_At?: string
+  update_At?: string
+  members?: User[]
+  deleted?: boolean
+}
+
+export interface MeetingRequest {
+  host_id?: number
+  place_id?: number
+  title?: string
+  description?: string
+  start_time?: string
+  end_time?: string
+  members_id?: number[]
+}

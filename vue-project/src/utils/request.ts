@@ -3,7 +3,9 @@ import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosR
 import type { BaseResponse } from '@/types/api'
 
 const service: AxiosInstance = axios.create({
-  baseURL: '/api', // 添加基础URL
+  // 明确指向后端服务地址，避免依赖 dev-server 的 proxy 导致请求发到错误的主机/端口
+  // 如果你的后端实际运行在其它地址或端口，请在这里修改为正确地址或使用环境变量
+  baseURL: 'http://localhost:8088/api',
   timeout: 15000,
   withCredentials: false
 })
@@ -12,12 +14,14 @@ const service: AxiosInstance = axios.create({
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
     try {
-      const fullUrl = `${service.defaults.baseURL ?? ''}${config.url ?? ''}`
+      const fullUrl = `${service.defaults.baseURL ?? ''}${String(config.url ?? '')}`
+      // 更可读的日志：method / full url / params / data
       console.log('🚀 发送请求:', {
-        method: config.method?.toUpperCase(),
+        method: (config.method ?? 'GET').toString().toUpperCase(),
         url: fullUrl,
         params: config.params,
-        data: config.data
+        // 避免直接打印大型或循环引用对象
+        data: config.data instanceof FormData ? '[FormData]' : config.data
       })
     } catch (e) {
       // swallow logging errors
