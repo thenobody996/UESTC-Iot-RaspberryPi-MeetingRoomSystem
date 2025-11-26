@@ -61,6 +61,34 @@ public class ProfileController {
             return Result.fail(e.getMessage());
         }
     }
+
+    // 新增：通过 profile id 查询
+    @Operation(summary = "根据 profile id 获取个人资料")
+    @GetMapping("/{id}")
+    public Result<Profile> getProfileById(@Parameter(description = "profile id", required = true) @PathVariable Integer id) {
+        try {
+            Profile p = profileService.getProfile(id);
+            if (p == null) {
+                return Result.fail("未找到对应个人资料");
+            }
+            return Result.ok(p);
+        } catch (Exception e) {
+            return Result.fail(e.getMessage());
+        }
+    }
+
+    // 新增：通过 user id 查询 profile
+    @Operation(summary = "根据 userId 获取个人资料")
+    @GetMapping("/byUser/{userId}")
+    public Result<Profile> getProfileByUserId(@Parameter(description = "user id", required = true) @PathVariable Integer userId) {
+        try {
+            Profile p = profileService.getProfileByUserId(userId);
+            return Result.ok(p);
+        } catch (Exception e) {
+            return Result.fail(e.getMessage());
+        }
+    }
+
     // 获取文件扩展名
     private String getFileExtension(String fileName) {
         int index = fileName.lastIndexOf('.');

@@ -31,6 +31,7 @@ public class MeetingRoom {
     @Getter
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id",referencedColumnName = "id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "meetings"})
     private User manager;
 
     @Setter
@@ -61,6 +62,7 @@ public class MeetingRoom {
     private LocalDateTime updateAt;
 
     @OneToMany(mappedBy = "place", fetch = FetchType.LAZY)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private List<Meeting> meetings;
 
     public void AddMeeting(Meeting meeting){
