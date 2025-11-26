@@ -11,10 +11,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
 @Table(name = "meetingroom")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler","device"})
 public class MeetingRoom {
     @Setter
     @Getter
